@@ -89,7 +89,7 @@ public sealed partial class AgentService(IFenrirDataStore dataStore) : IAgentSer
         else
         {
             agent = existing;
-            ApplyAgentUpdate(agent, request.Hostname, request.MachineGuid, request.OperatingSystem, request.AgentVersion, request.IpAddress, request.SourceId, request.QueuedEventsCount, request.LastTelemetryAtUtc: null, heartbeatAtUtc: now);
+            ApplyAgentUpdate(agent, request.Hostname, request.MachineGuid, request.OperatingSystem, request.AgentVersion, request.IpAddress, request.SourceId, request.QueuedEventsCount, lastTelemetryAtUtc: null, heartbeatAtUtc: now);
             await dataStore.UpdateAgentEndpointAsync(agent, cancellationToken);
         }
 
