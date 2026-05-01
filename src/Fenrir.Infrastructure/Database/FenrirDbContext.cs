@@ -28,6 +28,7 @@ public sealed class FenrirDbContext(DbContextOptions<FenrirDbContext> options) :
     public DbSet<SiemSourceState> SiemSourceStates => Set<SiemSourceState>();
     public DbSet<SiemSourceHealthSnapshot> SiemSourceHealthSnapshots => Set<SiemSourceHealthSnapshot>();
     public DbSet<SiemIngestionJob> SiemIngestionJobs => Set<SiemIngestionJob>();
+    public DbSet<SiemRawIngestionBatch> SiemRawIngestionBatches => Set<SiemRawIngestionBatch>();
     public DbSet<Finding> Findings => Set<Finding>();
     public DbSet<JobRecord> Jobs => Set<JobRecord>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -314,6 +315,27 @@ public sealed class FenrirDbContext(DbContextOptions<FenrirDbContext> options) :
             entity.Property(job => job.InputType).HasMaxLength(64);
             entity.Property(job => job.Parser).HasMaxLength(120);
             entity.Property(job => job.Status).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<SiemRawIngestionBatch>(entity =>
+        {
+            entity.ToTable("SiemRawIngestionBatches");
+            entity.HasIndex(batch => batch.JobId).IsUnique();
+            entity.HasIndex(batch => batch.Status);
+            entity.HasIndex(batch => batch.CreatedAtUtc);
+            entity.HasIndex(batch => batch.SourceId);
+            entity.Property(batch => batch.SourceName).HasMaxLength(160);
+            entity.Property(batch => batch.InputType).HasMaxLength(64);
+            entity.Property(batch => batch.Parser).HasMaxLength(120);
+            entity.Property(batch => batch.Status).HasMaxLength(64);
+            if (Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                entity.Property(batch => batch.PayloadJson).HasColumnType("jsonb");
+            }
+            entity.HasOne(batch => batch.Job)
+                .WithOne(job => job.RawBatch)
+                .HasForeignKey<SiemRawIngestionBatch>(batch => batch.JobId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<JobRecord>(entity =>

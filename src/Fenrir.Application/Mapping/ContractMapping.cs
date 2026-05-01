@@ -21,6 +21,61 @@ public static class ContractMapping
             finding.RelatedEntityId,
             finding.RelatedEntityType);
 
+    public static CaseDto ToDto(this Case investigationCase) =>
+        new(
+            investigationCase.Id,
+            investigationCase.CaseNumber,
+            investigationCase.Title,
+            investigationCase.Description,
+            investigationCase.Severity,
+            investigationCase.Status,
+            investigationCase.AssignedTo,
+            investigationCase.CreatedBy,
+            investigationCase.CreatedAtUtc,
+            investigationCase.UpdatedAtUtc,
+            investigationCase.ClosedAtUtc,
+            investigationCase.Summary,
+            investigationCase.Conclusion,
+            investigationCase.Notes.OrderByDescending(note => note.CreatedAtUtc).Select(note => note.ToDto()).ToArray(),
+            investigationCase.Evidence.OrderByDescending(evidence => evidence.CreatedAtUtc).Select(evidence => evidence.ToDto()).ToArray(),
+            investigationCase.EventLinks.OrderByDescending(link => link.CreatedAtUtc).Select(link => link.ToDto()).ToArray(),
+            investigationCase.IndicatorLinks.OrderByDescending(link => link.CreatedAtUtc).Select(link => link.ToDto()).ToArray(),
+            investigationCase.AssetLinks.OrderByDescending(link => link.CreatedAtUtc).Select(link => link.ToDto()).ToArray(),
+            investigationCase.UserLinks.OrderByDescending(link => link.CreatedAtUtc).Select(link => link.ToDto()).ToArray(),
+            investigationCase.TimelineItems.OrderBy(item => item.OccurredAtUtc).Select(item => item.ToDto()).ToArray());
+
+    public static CaseSummaryDto ToSummaryDto(this Case investigationCase) =>
+        new(
+            investigationCase.Id,
+            investigationCase.CaseNumber,
+            investigationCase.Title,
+            investigationCase.Severity,
+            investigationCase.Status,
+            investigationCase.AssignedTo,
+            investigationCase.CreatedAtUtc,
+            investigationCase.UpdatedAtUtc,
+            investigationCase.ClosedAtUtc,
+            investigationCase.EventLinks.Count,
+            investigationCase.IndicatorLinks.Count,
+            investigationCase.Notes.Count,
+            investigationCase.Evidence.Count);
+
+    public static CaseNoteDto ToDto(this CaseNote note) => new(note.Id, note.CaseId, note.Author, note.Note, note.CreatedAtUtc);
+
+    public static CaseEvidenceDto ToDto(this CaseEvidence evidence) =>
+        new(evidence.Id, evidence.CaseId, evidence.EvidenceType, evidence.FileName, evidence.ContentType, evidence.StorageReference, evidence.Sha256, evidence.UploadedBy, evidence.CreatedAtUtc);
+
+    public static CaseEventLinkDto ToDto(this CaseEventLink link) => new(link.Id, link.CaseId, link.EventId, link.Reason, link.CreatedAtUtc);
+
+    public static CaseIndicatorLinkDto ToDto(this CaseIndicatorLink link) => new(link.Id, link.CaseId, link.IndicatorId, link.Reason, link.CreatedAtUtc);
+
+    public static CaseAssetLinkDto ToDto(this CaseAssetLink link) => new(link.Id, link.CaseId, link.AssetReference, link.Reason, link.CreatedAtUtc);
+
+    public static CaseUserLinkDto ToDto(this CaseUserLink link) => new(link.Id, link.CaseId, link.UserReference, link.Reason, link.CreatedAtUtc);
+
+    public static CaseTimelineItemDto ToDto(this CaseTimelineItem item) =>
+        new(item.Id, item.CaseId, item.OccurredAtUtc, item.ItemType, item.Title, item.Description, item.RelatedEntityId, item.RelatedEntityType, item.CreatedAtUtc);
+
     public static AgentEnrolmentTokenCreatedResponse ToCreatedDto(this AgentEnrolmentToken token, string tokenValue) =>
         new(
             token.Id,

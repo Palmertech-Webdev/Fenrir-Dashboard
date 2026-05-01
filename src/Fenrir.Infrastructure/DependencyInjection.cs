@@ -1,5 +1,6 @@
 using DnsClient;
 using Fenrir.Application.Abstractions;
+using Fenrir.Infrastructure.Cases;
 using Fenrir.Infrastructure.Database;
 using Fenrir.Infrastructure.Dns;
 using Fenrir.Infrastructure.Jobs;
@@ -39,6 +40,7 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString);
         });
         services.AddScoped<IFenrirDataStore, EfFenrirDataStore>();
+        services.AddScoped<ICaseService, EfCaseService>();
 
         services.AddSingleton<ILookupClient>(_ => new LookupClient());
         services.AddScoped<IDnsLookupService, DnsClientLookupService>();

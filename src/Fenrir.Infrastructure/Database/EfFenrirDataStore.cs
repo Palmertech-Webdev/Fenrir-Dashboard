@@ -468,6 +468,45 @@ public sealed class EfFenrirDataStore(FenrirDbContext dbContext) : IFenrirDataSt
             .ToArray();
     }
 
+    public async Task AddSiemRawIngestionBatchAsync(SiemRawIngestionBatch batch, CancellationToken cancellationToken)
+    {
+        dbContext.SiemRawIngestionBatches.Add(batch);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<SiemRawIngestionBatch?> ClaimNextQueuedSiemRawIngestionBatchAsync(CancellationToken cancellationToken)
+    {
+        var batch = await dbContext.SiemRawIngestionBatches
+            .Where(current => current.Status == "Queued")
+            .OrderBy(current => current.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (batch is null)
+        {
+            return null;
+        }
+
+        batch.Status = "Processing";
+        batch.ProcessingStartedAtUtc = DateTime.UtcNow;
+        batch.AttemptCount += 1;
+
+        var job = await dbContext.SiemIngestionJobs.FindAsync([batch.JobId], cancellationToken);
+        if (job is not null)
+        {
+            job.Status = "Processing";
+            job.StartedAtUtc = batch.ProcessingStartedAtUtc.Value;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return batch;
+    }
+
+    public async Task UpdateSiemRawIngestionBatchAsync(SiemRawIngestionBatch batch, CancellationToken cancellationToken)
+    {
+        dbContext.SiemRawIngestionBatches.Update(batch);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task AddAgentEnrolmentTokenAsync(AgentEnrolmentToken token, CancellationToken cancellationToken)
     {
         dbContext.AgentEnrolmentTokens.Add(token);

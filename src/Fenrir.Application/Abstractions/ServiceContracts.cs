@@ -62,6 +62,26 @@ public interface ISiemService
     Task<SiemIngestionJobDto?> GetIngestionJobAsync(Guid id, CancellationToken cancellationToken);
 }
 
+public interface ISiemIngestionWorker
+{
+    Task<bool> ProcessNextQueuedBatchAsync(CancellationToken cancellationToken);
+}
+
+public interface ICaseService
+{
+    Task<CaseDto> CreateAsync(CaseCreateRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<CaseSummaryDto>> ListAsync(CancellationToken cancellationToken);
+    Task<CaseDto?> GetAsync(Guid id, CancellationToken cancellationToken);
+    Task<CaseDto?> UpdateAsync(Guid id, CaseUpdateRequest request, CancellationToken cancellationToken);
+    Task<CaseDto?> AddNoteAsync(Guid id, CaseNoteCreateRequest request, CancellationToken cancellationToken);
+    Task<CaseDto?> AddEvidenceAsync(Guid id, CaseEvidenceCreateRequest request, CancellationToken cancellationToken);
+    Task<CaseDto?> LinkEventAsync(Guid id, CaseEventLinkRequest request, CancellationToken cancellationToken);
+    Task<CaseDto?> LinkIndicatorAsync(Guid id, CaseIndicatorLinkRequest request, CancellationToken cancellationToken);
+    Task<CaseDto?> LinkAssetAsync(Guid id, CaseAssetLinkRequest request, CancellationToken cancellationToken);
+    Task<CaseDto?> LinkUserAsync(Guid id, CaseUserLinkRequest request, CancellationToken cancellationToken);
+    Task<CaseDto?> AddTimelineItemAsync(Guid id, CaseTimelineItemCreateRequest request, CancellationToken cancellationToken);
+}
+
 public interface IAgentService
 {
     Task<AgentEnrolmentTokenCreatedResponse> CreateEnrolmentTokenAsync(AgentEnrolmentTokenCreateRequest request, CancellationToken cancellationToken);
@@ -134,6 +154,18 @@ public interface IFenrirDataStore
     Task<IReadOnlyList<Indicator>> ListIndicatorsAsync(CancellationToken cancellationToken);
     Task UpsertIndicatorsAsync(IEnumerable<Indicator> indicators, CancellationToken cancellationToken);
 
+    Task AddCaseAsync(Case investigationCase, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task UpdateCaseAsync(Case investigationCase, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task<Case?> GetCaseAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<Case?>(null);
+    Task<IReadOnlyList<Case>> ListCasesAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<Case>>([]);
+    Task AddCaseNoteAsync(CaseNote note, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task AddCaseEvidenceAsync(CaseEvidence evidence, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task AddCaseEventLinkAsync(CaseEventLink link, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task AddCaseIndicatorLinkAsync(CaseIndicatorLink link, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task AddCaseAssetLinkAsync(CaseAssetLink link, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task AddCaseUserLinkAsync(CaseUserLink link, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task AddCaseTimelineItemAsync(CaseTimelineItem timelineItem, CancellationToken cancellationToken) => Task.CompletedTask;
+
     Task AddDnsCheckAsync(DnsCheck check, CancellationToken cancellationToken);
     Task<DnsCheck?> GetLatestDnsCheckAsync(string domain, CancellationToken cancellationToken);
     Task AddMonitoredDomainAsync(DnsMonitoredDomain domain, CancellationToken cancellationToken);
@@ -202,6 +234,9 @@ public interface IFenrirDataStore
     Task UpdateSiemIngestionJobAsync(SiemIngestionJob job, CancellationToken cancellationToken) => Task.CompletedTask;
     Task<SiemIngestionJob?> GetSiemIngestionJobAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<SiemIngestionJob?>(null);
     Task<IReadOnlyList<SiemIngestionJob>> ListSiemIngestionJobsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<SiemIngestionJob>>([]);
+    Task AddSiemRawIngestionBatchAsync(SiemRawIngestionBatch batch, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task<SiemRawIngestionBatch?> ClaimNextQueuedSiemRawIngestionBatchAsync(CancellationToken cancellationToken) => Task.FromResult<SiemRawIngestionBatch?>(null);
+    Task UpdateSiemRawIngestionBatchAsync(SiemRawIngestionBatch batch, CancellationToken cancellationToken) => Task.CompletedTask;
 
     Task AddAgentEnrolmentTokenAsync(AgentEnrolmentToken token, CancellationToken cancellationToken) => Task.CompletedTask;
     Task UpdateAgentEnrolmentTokenAsync(AgentEnrolmentToken token, CancellationToken cancellationToken) => Task.CompletedTask;

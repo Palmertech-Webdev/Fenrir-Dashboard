@@ -98,6 +98,27 @@ public class SiemSourceHealthSnapshot
     public SiemLogSource? Source { get; set; }
 }
 
+public class SiemRawIngestionBatch
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid JobId { get; set; }
+    public Guid? SourceId { get; set; }
+    public Guid? CaseId { get; set; }
+    public string SourceName { get; set; } = "";
+    public string InputType { get; set; } = "json";
+    public string Parser { get; set; } = "generic_json_v1";
+    public string Status { get; set; } = "Queued";
+    public int EventsReceived { get; set; }
+    public string PayloadJson { get; set; } = "[]";
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? ProcessingStartedAtUtc { get; set; }
+    public DateTime? CompletedAtUtc { get; set; }
+    public int AttemptCount { get; set; }
+    public string? LastError { get; set; }
+
+    public SiemIngestionJob? Job { get; set; }
+}
+
 public class SiemIngestionJob
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -113,4 +134,6 @@ public class SiemIngestionJob
     public string? ErrorSummary { get; set; }
     public DateTime StartedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? CompletedAtUtc { get; set; }
+
+    public SiemRawIngestionBatch? RawBatch { get; set; }
 }
