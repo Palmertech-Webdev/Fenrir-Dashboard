@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Fenrir.Application.Abstractions;
 using Fenrir.Application.Mapping;
+using Fenrir.Application.Siem.Parsing;
 using Fenrir.Application.Utilities;
 using Fenrir.Contracts;
 using Fenrir.Domain.Entities;
@@ -9,13 +10,23 @@ using Fenrir.Domain.Enums;
 
 namespace Fenrir.Application.Services;
 
-public sealed partial class SiemService(IFenrirDataStore dataStore) : ISiemService
+public sealed partial class SiemService(IFenrirDataStore dataStore, ISiemParserRegistry parserRegistry) : ISiemService
 {
     private const string DefaultParser = "generic_json_v1";
 
     public async Task<SiemEventIngestResponse> IngestAsync(SiemEventRequest request, CancellationToken cancellationToken)
     {
-        var securityEvent = BuildSecurityEvent(request, request.Source, DefaultParser);
+        var rawInput = new SiemRawEventInput(
+            ParserName: DefaultParser,
+            SourceId: null,
+            SourceName: request.Source,
+            Vendor: null,
+            Product: null,
+            RawJson: request.Raw,
+            RawText: request.Message,
+            ReceivedAtUtc: DateTime.UtcNow);
+
+        var securityEvent = await ParseSecurityEventAsync(rawInput, request, request.Source, DefaultParser, cancellationToken);
         await dataStore.AddSecurityEventAsync(securityEvent, cancellationToken);
 
         var findings = await CreateFindingsForEventAsync(securityEvent, cancellationToken);
@@ -26,6 +37,17 @@ public sealed partial class SiemService(IFenrirDataStore dataStore) : ISiemServi
     {
         var sourceName = string.IsNullOrWhiteSpace(request.Source) ? "Manual Upload" : request.Source.Trim();
         var parser = string.IsNullOrWhiteSpace(request.Parser) ? DefaultParser : request.Parser.Trim();
+        SiemLogSource? source = null;
+
+        if (request.SourceId.HasValue)
+        {
+            source = await dataStore.GetSiemLogSourceAsync(request.SourceId.Value, cancellationToken);
+            if (source is not null)
+            {
+                sourceName = source.Name;
+                parser = string.IsNullOrWhiteSpace(request.Parser) ? source.Parser : parser;
+            }
+        }
 
         var job = new SiemIngestionJob
         {
@@ -49,7 +71,17 @@ public sealed partial class SiemService(IFenrirDataStore dataStore) : ISiemServi
         {
             try
             {
-                var securityEvent = BuildSecurityEvent(eventRequest, sourceName, parser);
+                var rawInput = new SiemRawEventInput(
+                    ParserName: parser,
+                    SourceId: request.SourceId,
+                    SourceName: sourceName,
+                    Vendor: source?.Vendor,
+                    Product: source?.Product,
+                    RawJson: eventRequest.Raw,
+                    RawText: eventRequest.Message,
+                    ReceivedAtUtc: DateTime.UtcNow);
+
+                var securityEvent = await ParseSecurityEventAsync(rawInput, eventRequest, sourceName, parser, cancellationToken);
                 acceptedEvents.Add(securityEvent);
             }
             catch
@@ -70,7 +102,7 @@ public sealed partial class SiemService(IFenrirDataStore dataStore) : ISiemServi
 
         if (request.SourceId.HasValue)
         {
-            var source = await dataStore.GetSiemLogSourceAsync(request.SourceId.Value, cancellationToken);
+            source ??= await dataStore.GetSiemLogSourceAsync(request.SourceId.Value, cancellationToken);
             if (source is not null)
             {
                 var now = DateTime.UtcNow;
@@ -130,6 +162,10 @@ public sealed partial class SiemService(IFenrirDataStore dataStore) : ISiemServi
             request.UserName,
             request.IpAddress,
             request.Indicator,
+            request.EventCategory,
+            request.Domain,
+            request.FileHashSha256,
+            request.CloudAction,
             request.FromUtc,
             request.ToUtc,
             request.Take,
@@ -352,6 +388,57 @@ public sealed partial class SiemService(IFenrirDataStore dataStore) : ISiemServi
         return job?.ToDto();
     }
 
+    private async Task<SecurityEvent> ParseSecurityEventAsync(SiemRawEventInput rawInput, SiemEventRequest fallbackRequest, string fallbackSource, string parserName, CancellationToken cancellationToken)
+    {
+        var parser = parserRegistry.GetParser(parserName);
+        var parsed = await parser.ParseAsync(rawInput, cancellationToken);
+
+        if (parsed is null)
+        {
+            parsed = await parserRegistry.GetParser(DefaultParser).ParseAsync(rawInput with { ParserName = DefaultParser }, cancellationToken);
+        }
+
+        if (parsed is null)
+        {
+            return BuildFallbackSecurityEvent(fallbackRequest, fallbackSource, parserName);
+        }
+
+        return new SecurityEvent
+        {
+            TimestampUtc = parsed.TimestampUtc,
+            SourceId = parsed.SourceId,
+            Source = string.IsNullOrWhiteSpace(parsed.SourceName) ? fallbackSource : parsed.SourceName,
+            SourceName = parsed.SourceName,
+            Vendor = parsed.Vendor,
+            Product = parsed.Product,
+            Host = string.IsNullOrWhiteSpace(parsed.Host) ? "unknown" : parsed.Host,
+            EventType = string.IsNullOrWhiteSpace(parsed.EventType) ? "generic_event" : parsed.EventType,
+            EventCategory = parsed.EventCategory,
+            Severity = string.IsNullOrWhiteSpace(parsed.Severity) ? FindingSeverity.Low : parsed.Severity,
+            User = parsed.User,
+            SourceIp = parsed.SourceIp,
+            DestinationIp = parsed.DestinationIp,
+            SourcePort = parsed.SourcePort,
+            DestinationPort = parsed.DestinationPort,
+            Domain = parsed.Domain,
+            Url = parsed.Url,
+            FileName = parsed.FileName,
+            FilePath = parsed.FilePath,
+            FileHashSha256 = parsed.FileHashSha256,
+            ProcessName = parsed.ProcessName,
+            CommandLine = parsed.CommandLine,
+            ParentProcessName = parsed.ParentProcessName,
+            Mailbox = parsed.Mailbox,
+            CloudTenantId = parsed.CloudTenantId,
+            CloudResourceId = parsed.CloudResourceId,
+            Action = parsed.Action,
+            Outcome = parsed.Outcome,
+            Message = parsed.Message,
+            RawJson = parsed.RawJson,
+            IngestedAtUtc = DateTime.UtcNow
+        };
+    }
+
     private static SiemSourceConfig BuildSourceConfig(Guid sourceId, SiemSourceConfigRequest request, SiemSourceConfig? existing)
     {
         return new SiemSourceConfig
@@ -381,14 +468,16 @@ public sealed partial class SiemService(IFenrirDataStore dataStore) : ISiemServi
         };
     }
 
-    private static SecurityEvent BuildSecurityEvent(SiemEventRequest request, string fallbackSource, string parser)
+    private static SecurityEvent BuildFallbackSecurityEvent(SiemEventRequest request, string fallbackSource, string parser)
     {
         return new SecurityEvent
         {
             TimestampUtc = request.Timestamp?.ToUniversalTime() ?? DateTime.UtcNow,
             Source = string.IsNullOrWhiteSpace(request.Source) ? fallbackSource : request.Source.Trim(),
+            SourceName = string.IsNullOrWhiteSpace(request.Source) ? fallbackSource : request.Source.Trim(),
             Host = string.IsNullOrWhiteSpace(request.Host) ? "unknown" : request.Host.Trim(),
             EventType = string.IsNullOrWhiteSpace(request.EventType) ? "generic_event" : request.EventType.Trim(),
+            EventCategory = "generic",
             Severity = string.IsNullOrWhiteSpace(request.Severity) ? FindingSeverity.Low : request.Severity.Trim(),
             Message = request.Message?.Trim() ?? string.Empty,
             RawJson = request.Raw?.GetRawText() ?? "{}",
@@ -409,7 +498,7 @@ public sealed partial class SiemService(IFenrirDataStore dataStore) : ISiemServi
                 Severity = securityEvent.Severity,
                 RiskScore = SecurityHelpers.SeverityWeight(securityEvent.Severity),
                 Summary = securityEvent.Message,
-                Evidence = $"Source={securityEvent.Source}; Host={securityEvent.Host}; EventType={securityEvent.EventType}",
+                Evidence = $"Source={securityEvent.Source}; Host={securityEvent.Host}; EventType={securityEvent.EventType}; Category={securityEvent.EventCategory}",
                 Recommendation = "Review the event, identify related assets and IOCs, and open an incident workflow if confirmed.",
                 RelatedEntityId = securityEvent.Id,
                 RelatedEntityType = nameof(SecurityEvent)
