@@ -8,7 +8,7 @@ Fenrir SOC Core is a .NET 10 modular-monolith backend for the MVP security modul
 - DNS monitoring
 - Dark-web provider checks
 - Network scanning jobs
-- SIEM data collection
+- SIEM collector, ingestion jobs and log search
 - Shared findings and jobs
 
 ## Run Locally
@@ -51,8 +51,27 @@ Once running, open:
 - `GET /api/network/scans/{id}/results`
 - `POST /api/siem/events`
 - `GET /api/siem/events`
+- `POST /api/siem/events/search`
+- `POST /api/siem/ingest/batch`
+- `POST /api/siem/sources`
+- `GET /api/siem/sources`
+- `GET /api/siem/ingestion-jobs`
+- `GET /api/siem/ingestion-jobs/{id}`
 - `GET /api/findings`
 - `GET /api/findings/{id}`
 - `PATCH /api/findings/{id}/status`
 - `GET /api/jobs`
 - `GET /api/jobs/{id}`
+
+## SIEM Collector Scope
+
+The SIEM collector now supports:
+
+- Source registration for manual uploads, API pulls, syslog-style feeds, agents and SIEM exports.
+- Batch event ingestion with ingestion job status tracking.
+- Single-event ingestion compatibility for existing clients.
+- Search by source, host, severity, event type, user, IP, indicator and time range.
+- Automatic IOC extraction from message/raw payloads and finding creation where local IOCs match.
+- High/critical event finding creation for analyst review.
+
+The current implementation is intentionally collector-first and parser-ready. It preserves raw JSON payloads and creates normalised `SecurityEvent` records that can later be extended with dedicated parser packs for Windows, M365, Entra ID, DNS, firewall, VPN, Wazuh, Elastic and Splunk exports.
