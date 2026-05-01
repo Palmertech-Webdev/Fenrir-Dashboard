@@ -131,19 +131,36 @@ public interface IFenrirDataStore
     Task AddNetworkScanResultsAsync(IEnumerable<NetworkScanResult> results, CancellationToken cancellationToken);
 
     Task AddSecurityEventAsync(SecurityEvent securityEvent, CancellationToken cancellationToken);
-    Task AddSecurityEventsAsync(IEnumerable<SecurityEvent> securityEvents, CancellationToken cancellationToken);
-    Task<IReadOnlyList<SecurityEvent>> ListSecurityEventsAsync(string? source, string? host, string? severity, CancellationToken cancellationToken);
-    Task<IReadOnlyList<SecurityEvent>> SearchSecurityEventsAsync(string? source, string? host, string? severity, string? eventType, string? userName, string? ipAddress, string? indicator, DateTime? fromUtc, DateTime? toUtc, int take, CancellationToken cancellationToken);
 
-    Task AddSiemLogSourceAsync(SiemLogSource source, CancellationToken cancellationToken);
-    Task UpdateSiemLogSourceAsync(SiemLogSource source, CancellationToken cancellationToken);
-    Task<SiemLogSource?> GetSiemLogSourceAsync(Guid id, CancellationToken cancellationToken);
-    Task<SiemLogSource?> GetSiemLogSourceByNameAsync(string name, CancellationToken cancellationToken);
-    Task<IReadOnlyList<SiemLogSource>> ListSiemLogSourcesAsync(CancellationToken cancellationToken);
-    Task AddSiemIngestionJobAsync(SiemIngestionJob job, CancellationToken cancellationToken);
-    Task UpdateSiemIngestionJobAsync(SiemIngestionJob job, CancellationToken cancellationToken);
-    Task<SiemIngestionJob?> GetSiemIngestionJobAsync(Guid id, CancellationToken cancellationToken);
-    Task<IReadOnlyList<SiemIngestionJob>> ListSiemIngestionJobsAsync(CancellationToken cancellationToken);
+    Task AddSecurityEventsAsync(IEnumerable<SecurityEvent> securityEvents, CancellationToken cancellationToken)
+    {
+        return AddSecurityEventsDefaultAsync(securityEvents, cancellationToken);
+    }
+
+    private async Task AddSecurityEventsDefaultAsync(IEnumerable<SecurityEvent> securityEvents, CancellationToken cancellationToken)
+    {
+        foreach (var securityEvent in securityEvents)
+        {
+            await AddSecurityEventAsync(securityEvent, cancellationToken);
+        }
+    }
+
+    Task<IReadOnlyList<SecurityEvent>> ListSecurityEventsAsync(string? source, string? host, string? severity, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<SecurityEvent>> SearchSecurityEventsAsync(string? source, string? host, string? severity, string? eventType, string? userName, string? ipAddress, string? indicator, DateTime? fromUtc, DateTime? toUtc, int take, CancellationToken cancellationToken)
+    {
+        return ListSecurityEventsAsync(source, host, severity, cancellationToken);
+    }
+
+    Task AddSiemLogSourceAsync(SiemLogSource source, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task UpdateSiemLogSourceAsync(SiemLogSource source, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task<SiemLogSource?> GetSiemLogSourceAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<SiemLogSource?>(null);
+    Task<SiemLogSource?> GetSiemLogSourceByNameAsync(string name, CancellationToken cancellationToken) => Task.FromResult<SiemLogSource?>(null);
+    Task<IReadOnlyList<SiemLogSource>> ListSiemLogSourcesAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<SiemLogSource>>([]);
+    Task AddSiemIngestionJobAsync(SiemIngestionJob job, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task UpdateSiemIngestionJobAsync(SiemIngestionJob job, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task<SiemIngestionJob?> GetSiemIngestionJobAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<SiemIngestionJob?>(null);
+    Task<IReadOnlyList<SiemIngestionJob>> ListSiemIngestionJobsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<SiemIngestionJob>>([]);
 
     Task AddJobAsync(JobRecord job, CancellationToken cancellationToken);
     Task<JobRecord?> GetJobAsync(Guid id, CancellationToken cancellationToken);
