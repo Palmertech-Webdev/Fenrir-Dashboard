@@ -80,11 +80,19 @@ public class SiemSourceHealthSnapshot
     public Guid SourceId { get; set; }
     public DateTime CapturedAtUtc { get; set; } = DateTime.UtcNow;
     public string Status { get; set; } = "Unknown";
+    public DateTime? LastPollAtUtc { get; set; }
+    public DateTime? LastSuccessfulIngestAtUtc { get; set; }
     public int EventsReceivedLastInterval { get; set; }
     public int EventsParsedLastInterval { get; set; }
     public int EventsFailedLastInterval { get; set; }
+    public int EventsReceivedLast15Minutes { get; set; }
+    public int EventsParsedLast15Minutes { get; set; }
+    public int EventsFailedLast15Minutes { get; set; }
     public double ParseFailureRate { get; set; }
+    public int AverageIngestLatencyMs { get; set; }
     public int LagSeconds { get; set; }
+    public int QueueBacklog { get; set; }
+    public string? LastError { get; set; }
     public string? Message { get; set; }
 
     public SiemLogSource? Source { get; set; }
