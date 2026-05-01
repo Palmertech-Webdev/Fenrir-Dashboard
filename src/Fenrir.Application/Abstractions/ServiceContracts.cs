@@ -62,6 +62,11 @@ public interface ISiemService
     Task<SiemIngestionJobDto?> GetIngestionJobAsync(Guid id, CancellationToken cancellationToken);
 }
 
+public interface ISiemIngestionWorker
+{
+    Task<bool> ProcessNextQueuedBatchAsync(CancellationToken cancellationToken);
+}
+
 public interface IAgentService
 {
     Task<AgentEnrolmentTokenCreatedResponse> CreateEnrolmentTokenAsync(AgentEnrolmentTokenCreateRequest request, CancellationToken cancellationToken);
@@ -202,6 +207,9 @@ public interface IFenrirDataStore
     Task UpdateSiemIngestionJobAsync(SiemIngestionJob job, CancellationToken cancellationToken) => Task.CompletedTask;
     Task<SiemIngestionJob?> GetSiemIngestionJobAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<SiemIngestionJob?>(null);
     Task<IReadOnlyList<SiemIngestionJob>> ListSiemIngestionJobsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<SiemIngestionJob>>([]);
+    Task AddSiemRawIngestionBatchAsync(SiemRawIngestionBatch batch, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task<SiemRawIngestionBatch?> ClaimNextQueuedSiemRawIngestionBatchAsync(CancellationToken cancellationToken) => Task.FromResult<SiemRawIngestionBatch?>(null);
+    Task UpdateSiemRawIngestionBatchAsync(SiemRawIngestionBatch batch, CancellationToken cancellationToken) => Task.CompletedTask;
 
     Task AddAgentEnrolmentTokenAsync(AgentEnrolmentToken token, CancellationToken cancellationToken) => Task.CompletedTask;
     Task UpdateAgentEnrolmentTokenAsync(AgentEnrolmentToken token, CancellationToken cancellationToken) => Task.CompletedTask;
