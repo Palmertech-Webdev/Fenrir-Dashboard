@@ -50,6 +50,55 @@ public sealed class SiemController(ISiemService siemService) : ControllerBase
         return Ok(response);
     }
 
+    [HttpGet("sources/{id:guid}")]
+    public async Task<ActionResult<SiemSourceDto>> GetSource(Guid id, CancellationToken cancellationToken)
+    {
+        var response = await siemService.GetSourceAsync(id, cancellationToken);
+        return response is null ? NotFound() : Ok(response);
+    }
+
+    [HttpPatch("sources/{id:guid}")]
+    public async Task<ActionResult<SiemSourceDto>> UpdateSource(Guid id, SiemSourceUpdateRequest request, CancellationToken cancellationToken)
+    {
+        var response = await siemService.UpdateSourceAsync(id, request, cancellationToken);
+        return response is null ? NotFound() : Ok(response);
+    }
+
+    [HttpPut("sources/{id:guid}/config")]
+    public async Task<ActionResult<SiemSourceDto>> UpdateSourceConfig(Guid id, SiemSourceConfigRequest request, CancellationToken cancellationToken)
+    {
+        var response = await siemService.UpdateSourceConfigAsync(id, request, cancellationToken);
+        return response is null ? NotFound() : Ok(response);
+    }
+
+    [HttpPut("sources/{id:guid}/secret-refs")]
+    public async Task<ActionResult<SiemSourceDto>> AddOrUpdateSecretRef(Guid id, SiemSourceSecretRefRequest request, CancellationToken cancellationToken)
+    {
+        var response = await siemService.AddOrUpdateSecretRefAsync(id, request, cancellationToken);
+        return response is null ? NotFound() : Ok(response);
+    }
+
+    [HttpDelete("sources/{id:guid}/secret-refs/{secretPurpose}")]
+    public async Task<ActionResult<SiemSourceDto>> RemoveSecretRef(Guid id, string secretPurpose, CancellationToken cancellationToken)
+    {
+        var response = await siemService.RemoveSecretRefAsync(id, secretPurpose, cancellationToken);
+        return response is null ? NotFound() : Ok(response);
+    }
+
+    [HttpPut("sources/{id:guid}/state")]
+    public async Task<ActionResult<SiemSourceDto>> UpdateSourceState(Guid id, SiemSourceStateRequest request, CancellationToken cancellationToken)
+    {
+        var response = await siemService.UpdateSourceStateAsync(id, request, cancellationToken);
+        return response is null ? NotFound() : Ok(response);
+    }
+
+    [HttpPost("sources/{id:guid}/health")]
+    public async Task<ActionResult<SiemSourceDto>> AddHealthSnapshot(Guid id, SiemSourceHealthSnapshotRequest request, CancellationToken cancellationToken)
+    {
+        var response = await siemService.AddHealthSnapshotAsync(id, request, cancellationToken);
+        return response is null ? NotFound() : Ok(response);
+    }
+
     [HttpGet("ingestion-jobs")]
     public async Task<ActionResult<IReadOnlyList<SiemIngestionJobDto>>> ListIngestionJobs(CancellationToken cancellationToken)
     {
