@@ -46,7 +46,13 @@ public interface INetworkScanExecutor
 public interface ISiemService
 {
     Task<SiemEventIngestResponse> IngestAsync(SiemEventRequest request, CancellationToken cancellationToken);
+    Task<SiemBatchIngestResponse> IngestBatchAsync(SiemBatchIngestRequest request, CancellationToken cancellationToken);
     Task<IReadOnlyList<SiemEventDto>> ListAsync(string? source, string? host, string? severity, CancellationToken cancellationToken);
+    Task<IReadOnlyList<SiemEventDto>> SearchAsync(SiemEventSearchRequest request, CancellationToken cancellationToken);
+    Task<SiemSourceDto> RegisterSourceAsync(SiemSourceRegistrationRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<SiemSourceDto>> ListSourcesAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<SiemIngestionJobDto>> ListIngestionJobsAsync(CancellationToken cancellationToken);
+    Task<SiemIngestionJobDto?> GetIngestionJobAsync(Guid id, CancellationToken cancellationToken);
 }
 
 public interface IFindingService
@@ -125,7 +131,19 @@ public interface IFenrirDataStore
     Task AddNetworkScanResultsAsync(IEnumerable<NetworkScanResult> results, CancellationToken cancellationToken);
 
     Task AddSecurityEventAsync(SecurityEvent securityEvent, CancellationToken cancellationToken);
+    Task AddSecurityEventsAsync(IEnumerable<SecurityEvent> securityEvents, CancellationToken cancellationToken);
     Task<IReadOnlyList<SecurityEvent>> ListSecurityEventsAsync(string? source, string? host, string? severity, CancellationToken cancellationToken);
+    Task<IReadOnlyList<SecurityEvent>> SearchSecurityEventsAsync(string? source, string? host, string? severity, string? eventType, string? userName, string? ipAddress, string? indicator, DateTime? fromUtc, DateTime? toUtc, int take, CancellationToken cancellationToken);
+
+    Task AddSiemLogSourceAsync(SiemLogSource source, CancellationToken cancellationToken);
+    Task UpdateSiemLogSourceAsync(SiemLogSource source, CancellationToken cancellationToken);
+    Task<SiemLogSource?> GetSiemLogSourceAsync(Guid id, CancellationToken cancellationToken);
+    Task<SiemLogSource?> GetSiemLogSourceByNameAsync(string name, CancellationToken cancellationToken);
+    Task<IReadOnlyList<SiemLogSource>> ListSiemLogSourcesAsync(CancellationToken cancellationToken);
+    Task AddSiemIngestionJobAsync(SiemIngestionJob job, CancellationToken cancellationToken);
+    Task UpdateSiemIngestionJobAsync(SiemIngestionJob job, CancellationToken cancellationToken);
+    Task<SiemIngestionJob?> GetSiemIngestionJobAsync(Guid id, CancellationToken cancellationToken);
+    Task<IReadOnlyList<SiemIngestionJob>> ListSiemIngestionJobsAsync(CancellationToken cancellationToken);
 
     Task AddJobAsync(JobRecord job, CancellationToken cancellationToken);
     Task<JobRecord?> GetJobAsync(Guid id, CancellationToken cancellationToken);
