@@ -1,6 +1,11 @@
 const siemState = {
   sources: [],
   ingestionJobs: [],
+  ingestionJobFilters: {
+    status: "",
+    source: "",
+    parser: ""
+  },
   selectedEvent: null,
   autoRefreshHandle: null
 };
@@ -16,6 +21,8 @@ function bindSiemDashboard() {
   if (refreshCollectorButton) {
     refreshCollectorButton.addEventListener("click", refreshSiemCollector);
   }
+
+  injectIngestionJobFilters();
 
   const eventRows = document.getElementById("eventRows");
   if (eventRows) {
@@ -116,6 +123,54 @@ function bindSiemDashboard() {
   }
 }
 
+function injectIngestionJobFilters() {
+  const rows = document.getElementById("siemIngestionJobRows");
+  if (!rows || document.getElementById("siemIngestionJobFilters")) {
+    return;
+  }
+
+  const tableWrap = rows.closest(".table-wrap");
+  if (!tableWrap) {
+    return;
+  }
+
+  const filterBar = document.createElement("div");
+  filterBar.id = "siemIngestionJobFilters";
+  filterBar.className = "tool-form inline-form";
+  filterBar.innerHTML = `
+    <select id="siemJobStatusFilter" aria-label="Filter ingestion jobs by status">
+      <option value="">All statuses</option>
+      <option value="completed">Completed</option>
+      <option value="partially_parsed">Partially parsed</option>
+      <option value="processing">Processing</option>
+      <option value="queued">Queued</option>
+      <option value="failed">Failed</option>
+    </select>
+    <input id="siemJobSourceFilter" type="text" placeholder="Filter source / endpoint">
+    <input id="siemJobParserFilter" type="text" placeholder="Filter parser">
+    <button class="ghost" id="siemJobFilterClear" type="button">Clear</button>
+  `;
+
+  tableWrap.before(filterBar);
+
+  const apply = () => {
+    siemState.ingestionJobFilters.status = document.getElementById("siemJobStatusFilter")?.value || "";
+    siemState.ingestionJobFilters.source = document.getElementById("siemJobSourceFilter")?.value || "";
+    siemState.ingestionJobFilters.parser = document.getElementById("siemJobParserFilter")?.value || "";
+    renderSiemCollector();
+  };
+
+  document.getElementById("siemJobStatusFilter")?.addEventListener("change", apply);
+  document.getElementById("siemJobSourceFilter")?.addEventListener("input", apply);
+  document.getElementById("siemJobParserFilter")?.addEventListener("input", apply);
+  document.getElementById("siemJobFilterClear")?.addEventListener("click", () => {
+    document.getElementById("siemJobStatusFilter").value = "";
+    document.getElementById("siemJobSourceFilter").value = "";
+    document.getElementById("siemJobParserFilter").value = "";
+    apply();
+  });
+}
+
 async function refreshSiemCollector() {
   await Promise.allSettled([
     refreshSiemSources(),
@@ -161,10 +216,11 @@ async function pivotSiemEvents(field, value) {
 
 function renderSiemCollector() {
   const healthySources = siemState.sources.filter((source) => isHealthySource(source));
+  const filteredJobs = getFilteredIngestionJobs();
 
   setMetric("metricSiemSources", siemState.sources.length);
   setMetric("metricSiemHealthy", healthySources.length);
-  setMetric("metricSiemJobs", siemState.ingestionJobs.length);
+  setMetric("metricSiemJobs", filteredJobs.length);
   setMetric("metricSiemTelemetry", state.events.length);
 
   renderRows("siemSourceRows", siemState.sources, (source) => `
@@ -180,15 +236,33 @@ function renderSiemCollector() {
     </tr>
   `);
 
-  renderRows("siemIngestionJobRows", siemState.ingestionJobs, (job) => `
+  renderRows("siemIngestionJobRows", filteredJobs, (job) => `
     <tr>
       <td>${pill(job.status)}</td>
-      <td>${escapeHtml(job.sourceName || "Unknown")}</td>
+      <td>
+        ${escapeHtml(job.sourceName || "Unknown")}
+        <div class="muted-text">${formatDate(job.startedAtUtc)}</div>
+      </td>
       <td>${escapeHtml(job.parser || "")}</td>
       <td>${Number(job.eventsParsed || 0)}</td>
       <td>${Number(job.eventsFailed || 0)}</td>
     </tr>
   `);
+}
+
+function getFilteredIngestionJobs() {
+  const status = siemState.ingestionJobFilters.status.trim().toLowerCase();
+  const source = siemState.ingestionJobFilters.source.trim().toLowerCase();
+  const parser = siemState.ingestionJobFilters.parser.trim().toLowerCase();
+
+  return siemState.ingestionJobs.filter((job) => {
+    const jobStatus = String(job.status || "").toLowerCase();
+    const jobSource = String(job.sourceName || "").toLowerCase();
+    const jobParser = String(job.parser || "").toLowerCase();
+    return (!status || jobStatus === status)
+      && (!source || jobSource.includes(source))
+      && (!parser || jobParser.includes(parser));
+  });
 }
 
 function startSiemAutoRefresh() {
