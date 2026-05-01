@@ -10,9 +10,10 @@ using Fenrir.Domain.Enums;
 
 namespace Fenrir.Application.Services;
 
-public sealed partial class SiemService(IFenrirDataStore dataStore, ISiemParserRegistry parserRegistry) : ISiemService
+public sealed partial class SiemService(IFenrirDataStore dataStore, ISiemParserRegistry parserRegistry) : ISiemService, ISiemIngestionWorker
 {
     private const string DefaultParser = "generic_json_v1";
+    private static readonly JsonSerializerOptions QueueJsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<SiemEventIngestResponse> IngestAsync(SiemEventRequest request, CancellationToken cancellationToken)
     {
@@ -35,14 +36,13 @@ public sealed partial class SiemService(IFenrirDataStore dataStore, ISiemParserR
 
     public async Task<SiemBatchIngestResponse> IngestBatchAsync(SiemBatchIngestRequest request, CancellationToken cancellationToken)
     {
-        var batchStartedAtUtc = DateTime.UtcNow;
+        var queuedAtUtc = DateTime.UtcNow;
         var sourceName = string.IsNullOrWhiteSpace(request.Source) ? "Manual Upload" : request.Source.Trim();
         var parser = string.IsNullOrWhiteSpace(request.Parser) ? DefaultParser : request.Parser.Trim();
-        SiemLogSource? source = null;
 
         if (request.SourceId.HasValue)
         {
-            source = await dataStore.GetSiemLogSourceAsync(request.SourceId.Value, cancellationToken);
+            var source = await dataStore.GetSiemLogSourceAsync(request.SourceId.Value, cancellationToken);
             if (source is not null)
             {
                 sourceName = source.Name;
@@ -57,12 +57,106 @@ public sealed partial class SiemService(IFenrirDataStore dataStore, ISiemParserR
             SourceName = sourceName,
             InputType = string.IsNullOrWhiteSpace(request.InputType) ? "json" : request.InputType.Trim(),
             Parser = parser,
-            Status = "processing",
+            Status = "Queued",
             EventsReceived = request.Events.Count,
-            StartedAtUtc = batchStartedAtUtc
+            StartedAtUtc = queuedAtUtc
         };
 
         await dataStore.AddSiemIngestionJobAsync(job, cancellationToken);
+
+        await dataStore.AddSiemRawIngestionBatchAsync(new SiemRawIngestionBatch
+        {
+            JobId = job.Id,
+            SourceId = request.SourceId,
+            CaseId = request.CaseId,
+            SourceName = sourceName,
+            InputType = job.InputType,
+            Parser = parser,
+            Status = "Queued",
+            EventsReceived = request.Events.Count,
+            PayloadJson = JsonSerializer.Serialize(request.Events, QueueJsonOptions),
+            CreatedAtUtc = queuedAtUtc
+        }, cancellationToken);
+
+        return new SiemBatchIngestResponse(job.ToDto(), 0, 0, []);
+    }
+
+    public async Task<bool> ProcessNextQueuedBatchAsync(CancellationToken cancellationToken)
+    {
+        var batch = await dataStore.ClaimNextQueuedSiemRawIngestionBatchAsync(cancellationToken);
+        if (batch is null)
+        {
+            return false;
+        }
+
+        var job = await dataStore.GetSiemIngestionJobAsync(batch.JobId, cancellationToken);
+        if (job is null)
+        {
+            batch.Status = "Failed";
+            batch.CompletedAtUtc = DateTime.UtcNow;
+            batch.LastError = "Queued batch referenced a missing ingestion job.";
+            await dataStore.UpdateSiemRawIngestionBatchAsync(batch, cancellationToken);
+            return true;
+        }
+
+        try
+        {
+            var events = JsonSerializer.Deserialize<IReadOnlyList<SiemEventRequest>>(batch.PayloadJson, QueueJsonOptions) ?? [];
+            var request = new SiemBatchIngestRequest(
+                Source: batch.SourceName,
+                InputType: batch.InputType,
+                Parser: batch.Parser,
+                SourceId: batch.SourceId,
+                CaseId: batch.CaseId,
+                Events: events);
+
+            await ProcessBatchAsync(request, job, batch.ProcessingStartedAtUtc ?? DateTime.UtcNow, cancellationToken);
+
+            batch.Status = job.Status is "completed" or "partially_parsed" ? "Completed" : "Failed";
+            batch.CompletedAtUtc = job.CompletedAtUtc ?? DateTime.UtcNow;
+            batch.LastError = job.ErrorSummary;
+            await dataStore.UpdateSiemRawIngestionBatchAsync(batch, cancellationToken);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            job.Status = "Failed";
+            job.EventsFailed = job.EventsReceived;
+            job.ErrorSummary = ex.Message;
+            job.CompletedAtUtc = DateTime.UtcNow;
+            await dataStore.UpdateSiemIngestionJobAsync(job, cancellationToken);
+
+            batch.Status = "Failed";
+            batch.CompletedAtUtc = job.CompletedAtUtc;
+            batch.LastError = ex.Message;
+            await dataStore.UpdateSiemRawIngestionBatchAsync(batch, cancellationToken);
+            return true;
+        }
+    }
+
+    private async Task ProcessBatchAsync(SiemBatchIngestRequest request, SiemIngestionJob job, DateTime batchStartedAtUtc, CancellationToken cancellationToken)
+    {
+        var sourceName = string.IsNullOrWhiteSpace(request.Source) ? job.SourceName : request.Source.Trim();
+        var parser = string.IsNullOrWhiteSpace(request.Parser) ? job.Parser : request.Parser.Trim();
+        SiemLogSource? source = null;
+
+        if (request.SourceId.HasValue)
+        {
+            source = await dataStore.GetSiemLogSourceAsync(request.SourceId.Value, cancellationToken);
+            if (source is not null)
+            {
+                sourceName = source.Name;
+                parser = string.IsNullOrWhiteSpace(request.Parser) ? source.Parser : parser;
+            }
+        }
+
+        job.Status = "Processing";
+        job.SourceName = sourceName;
+        job.InputType = string.IsNullOrWhiteSpace(request.InputType) ? "json" : request.InputType.Trim();
+        job.Parser = parser;
+        job.EventsReceived = request.Events.Count;
+        job.StartedAtUtc = batchStartedAtUtc;
+        await dataStore.UpdateSiemIngestionJobAsync(job, cancellationToken);
 
         var acceptedEvents = new List<SecurityEvent>();
         var findings = new List<Finding>();
@@ -159,12 +253,10 @@ public sealed partial class SiemService(IFenrirDataStore dataStore, ISiemParserR
                     LagSeconds = lagSeconds,
                     QueueBacklog = 0,
                     LastError = failed == 0 ? null : $"{failed} event(s) failed parsing during batch ingest.",
-                    Message = failed == 0 ? "Batch ingest completed successfully." : $"Batch ingest completed with {failed} failed event(s)."
+                    Message = failed == 0 ? "Queued batch processed successfully." : $"Queued batch processed with {failed} failed event(s)."
                 }, cancellationToken);
             }
         }
-
-        return new SiemBatchIngestResponse(job.ToDto(), acceptedEvents.Count, failed, findings.Select(finding => finding.ToDto()).ToArray());
     }
 
     public async Task<IReadOnlyList<SiemEventDto>> ListAsync(string? source, string? host, string? severity, CancellationToken cancellationToken)
