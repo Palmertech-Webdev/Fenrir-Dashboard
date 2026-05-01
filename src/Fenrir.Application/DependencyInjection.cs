@@ -1,5 +1,6 @@
 using Fenrir.Application.Abstractions;
 using Fenrir.Application.Services;
+using Fenrir.Application.Siem.Parsing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Fenrir.Application;
@@ -16,6 +17,14 @@ public static class DependencyInjection
         services.AddScoped<INetworkScanningService, NetworkScanningService>();
         services.AddScoped<INetworkScanExecutor, NetworkScanExecutor>();
         services.AddScoped<ISiemService, SiemService>();
+        services.AddScoped<ISiemParserRegistry, SiemParserRegistry>();
+        services.AddScoped<ISiemParser, GenericJsonSiemParser>();
+        services.AddScoped<ISiemParser, ZeekJsonSiemParser>();
+        services.AddScoped<ISiemParser, SuricataEveJsonSiemParser>();
+        services.AddScoped<ISiemParser, M365AuditSiemParser>();
+        services.AddScoped<ISiemParser, AwsCloudTrailSiemParser>();
+        services.AddScoped<ISiemParser, WindowsEventJsonSiemParser>();
+        services.AddScoped<ISiemParser, SyslogBasicSiemParser>();
         services.AddScoped<IFindingService, FindingService>();
         services.AddScoped<IJobService, JobService>();
         services.AddSingleton<IDarkWebProvider, NoopDarkWebProvider>();
