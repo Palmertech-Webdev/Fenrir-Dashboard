@@ -80,6 +80,39 @@ public static class ContractMapping
             securityEvent.RawJson,
             securityEvent.IngestedAtUtc);
 
+    public static SiemSourceDto ToDto(this SiemLogSource source) =>
+        new(
+            source.Id,
+            source.Name,
+            source.SourceType,
+            source.Vendor,
+            source.Product,
+            source.ConnectionType,
+            source.Parser,
+            source.Status,
+            source.Description,
+            source.IsEnabled,
+            source.CreatedAtUtc,
+            source.UpdatedAtUtc,
+            source.LastSeenAtUtc,
+            source.LastSuccessfulIngestAtUtc);
+
+    public static SiemIngestionJobDto ToDto(this SiemIngestionJob job) =>
+        new(
+            job.Id,
+            job.SourceId,
+            job.CaseId,
+            job.SourceName,
+            job.InputType,
+            job.Parser,
+            job.Status,
+            job.EventsReceived,
+            job.EventsParsed,
+            job.EventsFailed,
+            job.ErrorSummary,
+            job.StartedAtUtc,
+            job.CompletedAtUtc);
+
     public static JobDto ToDto(this JobRecord job) =>
         new(
             job.Id,
