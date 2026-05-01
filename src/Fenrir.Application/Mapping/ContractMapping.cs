@@ -224,11 +224,19 @@ public static class ContractMapping
             snapshot.SourceId,
             snapshot.CapturedAtUtc,
             snapshot.Status,
+            snapshot.LastPollAtUtc,
+            snapshot.LastSuccessfulIngestAtUtc,
             snapshot.EventsReceivedLastInterval,
             snapshot.EventsParsedLastInterval,
             snapshot.EventsFailedLastInterval,
+            snapshot.EventsReceivedLast15Minutes,
+            snapshot.EventsParsedLast15Minutes,
+            snapshot.EventsFailedLast15Minutes,
             snapshot.ParseFailureRate,
+            snapshot.AverageIngestLatencyMs,
             snapshot.LagSeconds,
+            snapshot.QueueBacklog,
+            snapshot.LastError,
             snapshot.Message);
 
     public static SiemIngestionJobDto ToDto(this SiemIngestionJob job) =>

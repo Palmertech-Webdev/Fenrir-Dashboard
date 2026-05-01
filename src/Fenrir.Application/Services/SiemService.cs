@@ -35,6 +35,7 @@ public sealed partial class SiemService(IFenrirDataStore dataStore, ISiemParserR
 
     public async Task<SiemBatchIngestResponse> IngestBatchAsync(SiemBatchIngestRequest request, CancellationToken cancellationToken)
     {
+        var batchStartedAtUtc = DateTime.UtcNow;
         var sourceName = string.IsNullOrWhiteSpace(request.Source) ? "Manual Upload" : request.Source.Trim();
         var parser = string.IsNullOrWhiteSpace(request.Parser) ? DefaultParser : request.Parser.Trim();
         SiemLogSource? source = null;
@@ -58,7 +59,7 @@ public sealed partial class SiemService(IFenrirDataStore dataStore, ISiemParserR
             Parser = parser,
             Status = "processing",
             EventsReceived = request.Events.Count,
-            StartedAtUtc = DateTime.UtcNow
+            StartedAtUtc = batchStartedAtUtc
         };
 
         await dataStore.AddSiemIngestionJobAsync(job, cancellationToken);
@@ -100,24 +101,42 @@ public sealed partial class SiemService(IFenrirDataStore dataStore, ISiemParserR
             }
         }
 
+        var completedAtUtc = DateTime.UtcNow;
+        job.EventsParsed = acceptedEvents.Count;
+        job.EventsFailed = failed;
+        job.Status = failed == 0 ? "completed" : acceptedEvents.Count > 0 ? "partially_parsed" : "failed";
+        job.ErrorSummary = failed == 0 ? null : $"{failed} event(s) could not be parsed or normalised.";
+        job.CompletedAtUtc = completedAtUtc;
+        await dataStore.UpdateSiemIngestionJobAsync(job, cancellationToken);
+
         if (request.SourceId.HasValue)
         {
             source ??= await dataStore.GetSiemLogSourceAsync(request.SourceId.Value, cancellationToken);
             if (source is not null)
             {
-                var now = DateTime.UtcNow;
-                source.LastSeenAtUtc = now;
-                source.LastSuccessfulIngestAtUtc = acceptedEvents.Count > 0 ? now : source.LastSuccessfulIngestAtUtc;
-                source.Status = failed == 0 ? "Healthy" : "Warning";
-                source.UpdatedAtUtc = now;
+                var lastEventTimestampUtc = acceptedEvents.Count > 0
+                    ? acceptedEvents.Max(securityEvent => securityEvent.TimestampUtc)
+                    : source.State?.LastEventTimestampUtc;
+                var lagSeconds = lastEventTimestampUtc.HasValue
+                    ? Math.Max(0, (int)Math.Round((completedAtUtc - lastEventTimestampUtc.Value).TotalSeconds))
+                    : 0;
+                var latencyMs = Math.Max(0, (int)Math.Round((completedAtUtc - batchStartedAtUtc).TotalMilliseconds));
+                var parseFailureRate = request.Events.Count == 0 ? 0 : Math.Round((double)failed / request.Events.Count, 4);
+                var status = ResolveSourceHealthStatus(source.IsEnabled, request.Events.Count, failed, acceptedEvents.Count);
+
+                source.LastSeenAtUtc = completedAtUtc;
+                source.LastSuccessfulIngestAtUtc = acceptedEvents.Count > 0 ? completedAtUtc : source.LastSuccessfulIngestAtUtc;
+                source.Status = status;
+                source.UpdatedAtUtc = completedAtUtc;
                 await dataStore.UpdateSiemLogSourceAsync(source, cancellationToken);
 
                 await dataStore.UpsertSiemSourceStateAsync(new SiemSourceState
                 {
                     SourceId = source.Id,
-                    ConnectorState = failed == 0 ? "Healthy" : "Warning",
-                    LastPollCompletedAtUtc = now,
-                    LastEventTimestampUtc = acceptedEvents.Count > 0 ? acceptedEvents.Max(securityEvent => securityEvent.TimestampUtc) : source.State?.LastEventTimestampUtc,
+                    ConnectorState = status,
+                    LastPollStartedAtUtc = batchStartedAtUtc,
+                    LastPollCompletedAtUtc = completedAtUtc,
+                    LastEventTimestampUtc = lastEventTimestampUtc,
                     ConsecutiveFailureCount = failed == 0 ? 0 : (source.State?.ConsecutiveFailureCount ?? 0) + 1,
                     LastError = failed == 0 ? null : $"{failed} event(s) failed parsing during batch ingest."
                 }, cancellationToken);
@@ -125,23 +144,25 @@ public sealed partial class SiemService(IFenrirDataStore dataStore, ISiemParserR
                 await dataStore.AddSiemSourceHealthSnapshotAsync(new SiemSourceHealthSnapshot
                 {
                     SourceId = source.Id,
-                    Status = source.Status,
+                    CapturedAtUtc = completedAtUtc,
+                    Status = status,
+                    LastPollAtUtc = completedAtUtc,
+                    LastSuccessfulIngestAtUtc = acceptedEvents.Count > 0 ? completedAtUtc : source.LastSuccessfulIngestAtUtc,
                     EventsReceivedLastInterval = request.Events.Count,
                     EventsParsedLastInterval = acceptedEvents.Count,
                     EventsFailedLastInterval = failed,
-                    ParseFailureRate = request.Events.Count == 0 ? 0 : Math.Round((double)failed / request.Events.Count, 4),
-                    LagSeconds = 0,
+                    EventsReceivedLast15Minutes = request.Events.Count,
+                    EventsParsedLast15Minutes = acceptedEvents.Count,
+                    EventsFailedLast15Minutes = failed,
+                    ParseFailureRate = parseFailureRate,
+                    AverageIngestLatencyMs = latencyMs,
+                    LagSeconds = lagSeconds,
+                    QueueBacklog = 0,
+                    LastError = failed == 0 ? null : $"{failed} event(s) failed parsing during batch ingest.",
                     Message = failed == 0 ? "Batch ingest completed successfully." : $"Batch ingest completed with {failed} failed event(s)."
                 }, cancellationToken);
             }
         }
-
-        job.EventsParsed = acceptedEvents.Count;
-        job.EventsFailed = failed;
-        job.Status = failed == 0 ? "completed" : acceptedEvents.Count > 0 ? "partially_parsed" : "failed";
-        job.ErrorSummary = failed == 0 ? null : $"{failed} event(s) could not be parsed or normalised.";
-        job.CompletedAtUtc = DateTime.UtcNow;
-        await dataStore.UpdateSiemIngestionJobAsync(job, cancellationToken);
 
         return new SiemBatchIngestResponse(job.ToDto(), acceptedEvents.Count, failed, findings.Select(finding => finding.ToDto()).ToArray());
     }
@@ -364,15 +385,25 @@ public sealed partial class SiemService(IFenrirDataStore dataStore, ISiemParserR
         {
             SourceId = id,
             Status = status,
+            LastPollAtUtc = request.LastPollAtUtc,
+            LastSuccessfulIngestAtUtc = request.LastSuccessfulIngestAtUtc,
             EventsReceivedLastInterval = request.EventsReceivedLastInterval,
             EventsParsedLastInterval = request.EventsParsedLastInterval,
             EventsFailedLastInterval = request.EventsFailedLastInterval,
+            EventsReceivedLast15Minutes = request.EventsReceivedLast15Minutes,
+            EventsParsedLast15Minutes = request.EventsParsedLast15Minutes,
+            EventsFailedLast15Minutes = request.EventsFailedLast15Minutes,
             ParseFailureRate = request.ParseFailureRate,
+            AverageIngestLatencyMs = request.AverageIngestLatencyMs,
             LagSeconds = request.LagSeconds,
+            QueueBacklog = request.QueueBacklog,
+            LastError = request.LastError,
             Message = request.Message
         }, cancellationToken);
 
         source.Status = status;
+        source.LastSeenAtUtc = request.LastPollAtUtc ?? source.LastSeenAtUtc;
+        source.LastSuccessfulIngestAtUtc = request.LastSuccessfulIngestAtUtc ?? source.LastSuccessfulIngestAtUtc;
         source.UpdatedAtUtc = DateTime.UtcNow;
         await dataStore.UpdateSiemLogSourceAsync(source, cancellationToken);
 
@@ -440,6 +471,26 @@ public sealed partial class SiemService(IFenrirDataStore dataStore, ISiemParserR
             RawJson = parsed.RawJson,
             IngestedAtUtc = DateTime.UtcNow
         };
+    }
+
+    private static string ResolveSourceHealthStatus(bool isEnabled, int received, int failed, int parsed)
+    {
+        if (!isEnabled)
+        {
+            return "Disabled";
+        }
+
+        if (received == 0)
+        {
+            return "Warning";
+        }
+
+        if (parsed == 0 && failed > 0)
+        {
+            return "Error";
+        }
+
+        return failed == 0 ? "Healthy" : "Warning";
     }
 
     private static SiemSourceConfig BuildSourceConfig(Guid sourceId, SiemSourceConfigRequest request, SiemSourceConfig? existing)

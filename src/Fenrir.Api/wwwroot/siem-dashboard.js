@@ -223,18 +223,35 @@ function renderSiemCollector() {
   setMetric("metricSiemJobs", filteredJobs.length);
   setMetric("metricSiemTelemetry", state.events.length);
 
-  renderRows("siemSourceRows", siemState.sources, (source) => `
-    <tr>
-      <td>${pill(source.status || (source.isEnabled ? "Healthy" : "Disabled"))}</td>
-      <td>
-        <strong>${escapeHtml(source.name)}</strong>
-        <div class="muted-text">${escapeHtml(source.vendor || "Generic")} / ${escapeHtml(source.product || "Generic")}</div>
-      </td>
-      <td>${escapeHtml(source.sourceType)}</td>
-      <td>${escapeHtml(source.parser)}</td>
-      <td>${formatDate(source.lastSuccessfulIngestAtUtc)}</td>
-    </tr>
-  `);
+  renderRows("siemSourceRows", siemState.sources, (source) => {
+    const health = latestSourceHealth(source);
+    return `
+      <tr>
+        <td>${pill(source.status || health?.status || (source.isEnabled ? "Healthy" : "Disabled"))}</td>
+        <td>
+          <strong>${escapeHtml(source.name)}</strong>
+          <div class="muted-text">${escapeHtml(source.vendor || "Generic")} / ${escapeHtml(source.product || "Generic")}</div>
+          ${health?.lastError ? `<div class="error-text">${escapeHtml(health.lastError)}</div>` : ""}
+        </td>
+        <td>
+          ${escapeHtml(source.sourceType)}
+          <div class="muted-text">Parser: ${escapeHtml(source.parser)}</div>
+        </td>
+        <td>
+          <strong>${Number(health?.eventsReceivedLast15Minutes || 0)}</strong> received
+          <div class="muted-text">${Number(health?.eventsParsedLast15Minutes || 0)} parsed · ${Number(health?.eventsFailedLast15Minutes || 0)} failed</div>
+        </td>
+        <td>
+          ${formatPercent(health?.parseFailureRate)}
+          <div class="muted-text">Lag: ${formatDurationSeconds(health?.lagSeconds)} · Backlog: ${Number(health?.queueBacklog || 0)}</div>
+        </td>
+        <td>
+          ${formatDate(health?.lastSuccessfulIngestAtUtc || source.lastSuccessfulIngestAtUtc)}
+          <div class="muted-text">Poll: ${formatDate(health?.lastPollAtUtc || source.lastSeenAtUtc)}</div>
+        </td>
+      </tr>
+    `;
+  });
 
   renderRows("siemIngestionJobRows", filteredJobs, (job) => `
     <tr>
@@ -248,6 +265,27 @@ function renderSiemCollector() {
       <td>${Number(job.eventsFailed || 0)}</td>
     </tr>
   `);
+}
+
+function latestSourceHealth(source) {
+  const snapshots = Array.isArray(source.recentHealth) ? source.recentHealth : [];
+  return snapshots.length ? snapshots[0] : null;
+}
+
+function formatPercent(value) {
+  const numeric = Number(value || 0);
+  return `${Math.round(numeric * 1000) / 10}%`;
+}
+
+function formatDurationSeconds(value) {
+  const seconds = Number(value || 0);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  if (seconds < 3600) {
+    return `${Math.round(seconds / 60)}m`;
+  }
+  return `${Math.round(seconds / 3600)}h`;
 }
 
 function getFilteredIngestionJobs() {
