@@ -154,7 +154,22 @@ public interface IFenrirDataStore
 
     Task<IReadOnlyList<SecurityEvent>> ListSecurityEventsAsync(string? source, string? host, string? severity, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<SecurityEvent>> SearchSecurityEventsAsync(string? source, string? host, string? severity, string? eventType, string? userName, string? ipAddress, string? indicator, DateTime? fromUtc, DateTime? toUtc, int take, CancellationToken cancellationToken)
+    Task<IReadOnlyList<SecurityEvent>> SearchSecurityEventsAsync(
+        string? source,
+        string? host,
+        string? severity,
+        string? eventType,
+        string? userName,
+        string? ipAddress,
+        string? indicator,
+        string? eventCategory,
+        string? domain,
+        string? fileHashSha256,
+        string? cloudAction,
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        int take,
+        CancellationToken cancellationToken)
     {
         return ListSecurityEventsAsync(source, host, severity, cancellationToken);
     }
