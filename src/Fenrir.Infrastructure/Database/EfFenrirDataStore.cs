@@ -159,6 +159,12 @@ public sealed class EfFenrirDataStore(FenrirDbContext dbContext) : IFenrirDataSt
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task AddSecurityEventsAsync(IEnumerable<SecurityEvent> securityEvents, CancellationToken cancellationToken)
+    {
+        dbContext.SiemEvents.AddRange(securityEvents);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<SecurityEvent>> ListSecurityEventsAsync(string? source, string? host, string? severity, CancellationToken cancellationToken)
     {
         var query = dbContext.SiemEvents.AsQueryable();
@@ -182,6 +188,100 @@ public sealed class EfFenrirDataStore(FenrirDbContext dbContext) : IFenrirDataSt
             .Take(500)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<SecurityEvent>> SearchSecurityEventsAsync(string? source, string? host, string? severity, string? eventType, string? userName, string? ipAddress, string? indicator, DateTime? fromUtc, DateTime? toUtc, int take, CancellationToken cancellationToken)
+    {
+        var query = dbContext.SiemEvents.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(source))
+        {
+            query = query.Where(securityEvent => securityEvent.Source == source);
+        }
+
+        if (!string.IsNullOrWhiteSpace(host))
+        {
+            query = query.Where(securityEvent => securityEvent.Host == host);
+        }
+
+        if (!string.IsNullOrWhiteSpace(severity))
+        {
+            query = query.Where(securityEvent => securityEvent.Severity == severity);
+        }
+
+        if (!string.IsNullOrWhiteSpace(eventType))
+        {
+            query = query.Where(securityEvent => securityEvent.EventType == eventType);
+        }
+
+        if (fromUtc.HasValue)
+        {
+            query = query.Where(securityEvent => securityEvent.TimestampUtc >= fromUtc.Value.ToUniversalTime());
+        }
+
+        if (toUtc.HasValue)
+        {
+            query = query.Where(securityEvent => securityEvent.TimestampUtc <= toUtc.Value.ToUniversalTime());
+        }
+
+        if (!string.IsNullOrWhiteSpace(userName))
+        {
+            query = query.Where(securityEvent => securityEvent.Message.Contains(userName) || securityEvent.RawJson.Contains(userName));
+        }
+
+        if (!string.IsNullOrWhiteSpace(ipAddress))
+        {
+            query = query.Where(securityEvent => securityEvent.Message.Contains(ipAddress) || securityEvent.RawJson.Contains(ipAddress));
+        }
+
+        if (!string.IsNullOrWhiteSpace(indicator))
+        {
+            query = query.Where(securityEvent => securityEvent.Message.Contains(indicator) || securityEvent.RawJson.Contains(indicator));
+        }
+
+        return await query
+            .OrderByDescending(securityEvent => securityEvent.TimestampUtc)
+            .Take(Math.Clamp(take, 1, 1000))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task AddSiemLogSourceAsync(SiemLogSource source, CancellationToken cancellationToken)
+    {
+        dbContext.SiemLogSources.Add(source);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateSiemLogSourceAsync(SiemLogSource source, CancellationToken cancellationToken)
+    {
+        dbContext.SiemLogSources.Update(source);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<SiemLogSource?> GetSiemLogSourceAsync(Guid id, CancellationToken cancellationToken) =>
+        await dbContext.SiemLogSources.FindAsync([id], cancellationToken);
+
+    public async Task<SiemLogSource?> GetSiemLogSourceByNameAsync(string name, CancellationToken cancellationToken) =>
+        await dbContext.SiemLogSources.FirstOrDefaultAsync(source => source.Name == name, cancellationToken);
+
+    public async Task<IReadOnlyList<SiemLogSource>> ListSiemLogSourcesAsync(CancellationToken cancellationToken) =>
+        await dbContext.SiemLogSources.OrderBy(source => source.Name).ToListAsync(cancellationToken);
+
+    public async Task AddSiemIngestionJobAsync(SiemIngestionJob job, CancellationToken cancellationToken)
+    {
+        dbContext.SiemIngestionJobs.Add(job);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateSiemIngestionJobAsync(SiemIngestionJob job, CancellationToken cancellationToken)
+    {
+        dbContext.SiemIngestionJobs.Update(job);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<SiemIngestionJob?> GetSiemIngestionJobAsync(Guid id, CancellationToken cancellationToken) =>
+        await dbContext.SiemIngestionJobs.FindAsync([id], cancellationToken);
+
+    public async Task<IReadOnlyList<SiemIngestionJob>> ListSiemIngestionJobsAsync(CancellationToken cancellationToken) =>
+        await dbContext.SiemIngestionJobs.OrderByDescending(job => job.StartedAtUtc).Take(500).ToListAsync(cancellationToken);
 
     public async Task AddJobAsync(JobRecord job, CancellationToken cancellationToken)
     {
