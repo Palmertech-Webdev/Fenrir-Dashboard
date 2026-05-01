@@ -1,4 +1,4 @@
-@Fenrir.Api_HostAddress = http://localhost:5248
+@Fenrir.Api_HostAddress = http://0.0.0.0:5248
 
 GET {{Fenrir.Api_HostAddress}}/health
 Accept: application/json
