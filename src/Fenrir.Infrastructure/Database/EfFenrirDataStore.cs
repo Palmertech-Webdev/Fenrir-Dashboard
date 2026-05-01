@@ -453,6 +453,48 @@ public sealed class EfFenrirDataStore(FenrirDbContext dbContext) : IFenrirDataSt
     public async Task<IReadOnlyList<SiemIngestionJob>> ListSiemIngestionJobsAsync(CancellationToken cancellationToken) =>
         await dbContext.SiemIngestionJobs.OrderByDescending(job => job.StartedAtUtc).Take(500).ToListAsync(cancellationToken);
 
+    public async Task AddAgentEnrolmentTokenAsync(AgentEnrolmentToken token, CancellationToken cancellationToken)
+    {
+        dbContext.AgentEnrolmentTokens.Add(token);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateAgentEnrolmentTokenAsync(AgentEnrolmentToken token, CancellationToken cancellationToken)
+    {
+        dbContext.AgentEnrolmentTokens.Update(token);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<AgentEnrolmentToken?> GetAgentEnrolmentTokenByHashAsync(string tokenHash, CancellationToken cancellationToken) =>
+        await dbContext.AgentEnrolmentTokens.FirstOrDefaultAsync(token => token.TokenHash == tokenHash, cancellationToken);
+
+    public async Task<AgentEnrolmentToken?> GetAgentEnrolmentTokenAsync(Guid id, CancellationToken cancellationToken) =>
+        await dbContext.AgentEnrolmentTokens.FindAsync([id], cancellationToken);
+
+    public async Task<IReadOnlyList<AgentEnrolmentToken>> ListAgentEnrolmentTokensAsync(CancellationToken cancellationToken) =>
+        await dbContext.AgentEnrolmentTokens.OrderByDescending(token => token.CreatedAtUtc).ToListAsync(cancellationToken);
+
+    public async Task AddAgentEndpointAsync(AgentEndpoint agent, CancellationToken cancellationToken)
+    {
+        dbContext.AgentEndpoints.Add(agent);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateAgentEndpointAsync(AgentEndpoint agent, CancellationToken cancellationToken)
+    {
+        dbContext.AgentEndpoints.Update(agent);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<AgentEndpoint?> GetAgentEndpointByAgentIdAsync(string agentId, CancellationToken cancellationToken) =>
+        await dbContext.AgentEndpoints.FirstOrDefaultAsync(agent => agent.AgentId == agentId, cancellationToken);
+
+    public async Task<AgentEndpoint?> GetAgentEndpointByMachineGuidAsync(string machineGuid, CancellationToken cancellationToken) =>
+        await dbContext.AgentEndpoints.FirstOrDefaultAsync(agent => agent.MachineGuid == machineGuid, cancellationToken);
+
+    public async Task<IReadOnlyList<AgentEndpoint>> ListAgentEndpointsAsync(CancellationToken cancellationToken) =>
+        await dbContext.AgentEndpoints.OrderBy(agent => agent.Hostname).ToListAsync(cancellationToken);
+
     public async Task AddJobAsync(JobRecord job, CancellationToken cancellationToken)
     {
         dbContext.Jobs.Add(job);
