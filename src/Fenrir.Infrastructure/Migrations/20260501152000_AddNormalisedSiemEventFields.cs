@@ -1,10 +1,14 @@
 using System;
+using Fenrir.Infrastructure.Database;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Fenrir.Infrastructure.Migrations;
 
+[DbContext(typeof(FenrirDbContext))]
+[Migration("20260501152000_AddNormalisedSiemEventFields")]
 public partial class AddNormalisedSiemEventFields : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
