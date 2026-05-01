@@ -6,6 +6,9 @@
     <Project Path="src/Fenrir.Domain/Fenrir.Domain.csproj" />
     <Project Path="src/Fenrir.Infrastructure/Fenrir.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/agent/">
+    <Project Path="agent/Fenrir.Agent.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Fenrir.Tests/Fenrir.Tests.csproj" />
   </Folder>
