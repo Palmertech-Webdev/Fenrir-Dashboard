@@ -187,10 +187,33 @@ public class SecurityEvent
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public DateTime TimestampUtc { get; set; } = DateTime.UtcNow;
+    public Guid? SourceId { get; set; }
     public string Source { get; set; } = "";
+    public string? SourceName { get; set; }
+    public string? Vendor { get; set; }
+    public string? Product { get; set; }
     public string Host { get; set; } = "";
     public string EventType { get; set; } = "";
+    public string? EventCategory { get; set; }
     public string Severity { get; set; } = FindingSeverity.Low;
+    public string? User { get; set; }
+    public string? SourceIp { get; set; }
+    public string? DestinationIp { get; set; }
+    public int? SourcePort { get; set; }
+    public int? DestinationPort { get; set; }
+    public string? Domain { get; set; }
+    public string? Url { get; set; }
+    public string? FileName { get; set; }
+    public string? FilePath { get; set; }
+    public string? FileHashSha256 { get; set; }
+    public string? ProcessName { get; set; }
+    public string? CommandLine { get; set; }
+    public string? ParentProcessName { get; set; }
+    public string? Mailbox { get; set; }
+    public string? CloudTenantId { get; set; }
+    public string? CloudResourceId { get; set; }
+    public string? Action { get; set; }
+    public string? Outcome { get; set; }
     public string Message { get; set; } = "";
     public string RawJson { get; set; } = "{}";
     public DateTime IngestedAtUtc { get; set; } = DateTime.UtcNow;

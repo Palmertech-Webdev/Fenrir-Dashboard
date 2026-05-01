@@ -16,6 +16,10 @@ public sealed record SiemEventSearchRequest(
     string? UserName = null,
     string? IpAddress = null,
     string? Indicator = null,
+    string? EventCategory = null,
+    string? Domain = null,
+    string? FileHashSha256 = null,
+    string? CloudAction = null,
     DateTime? FromUtc = null,
     DateTime? ToUtc = null,
     int Take = 500);
