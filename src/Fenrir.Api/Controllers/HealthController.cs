@@ -83,7 +83,7 @@ public sealed class HealthController(FenrirDbContext dbContext, ILogger<HealthCo
     private async Task<IReadOnlyList<string>> GetMissingPostgresTablesAsync(CancellationToken cancellationToken)
     {
         var missing = new List<string>();
-        await using var connection = dbContext.Database.GetDbConnection();
+        var connection = dbContext.Database.GetDbConnection();
 
         if (connection.State != System.Data.ConnectionState.Open)
         {
@@ -113,7 +113,7 @@ public sealed class HealthController(FenrirDbContext dbContext, ILogger<HealthCo
     private async Task<IReadOnlyList<string>> GetMissingSqliteTablesAsync(CancellationToken cancellationToken)
     {
         var missing = new List<string>();
-        await using var connection = dbContext.Database.GetDbConnection();
+        var connection = dbContext.Database.GetDbConnection();
 
         if (connection.State != System.Data.ConnectionState.Open)
         {
