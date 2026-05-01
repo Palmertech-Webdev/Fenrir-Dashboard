@@ -75,6 +75,10 @@ public sealed class EfFenrirDataStore(FenrirDbContext dbContext) : IFenrirDataSt
             existing.Tags = indicator.Tags;
             existing.FirstSeenUtc = indicator.FirstSeenUtc < existing.FirstSeenUtc ? indicator.FirstSeenUtc : existing.FirstSeenUtc;
             existing.LastSeenUtc = indicator.LastSeenUtc > existing.LastSeenUtc ? indicator.LastSeenUtc : DateTime.UtcNow;
+            existing.ExpiresAtUtc = indicator.ExpiresAtUtc ?? existing.ExpiresAtUtc;
+            existing.Tlp = string.IsNullOrWhiteSpace(indicator.Tlp) ? existing.Tlp : indicator.Tlp;
+            existing.Description = string.IsNullOrWhiteSpace(indicator.Description) ? existing.Description : indicator.Description;
+            existing.ExternalReference = string.IsNullOrWhiteSpace(indicator.ExternalReference) ? existing.ExternalReference : indicator.ExternalReference;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -450,8 +454,19 @@ public sealed class EfFenrirDataStore(FenrirDbContext dbContext) : IFenrirDataSt
     public async Task<SiemIngestionJob?> GetSiemIngestionJobAsync(Guid id, CancellationToken cancellationToken) =>
         await dbContext.SiemIngestionJobs.FindAsync([id], cancellationToken);
 
-    public async Task<IReadOnlyList<SiemIngestionJob>> ListSiemIngestionJobsAsync(CancellationToken cancellationToken) =>
-        await dbContext.SiemIngestionJobs.OrderByDescending(job => job.StartedAtUtc).Take(500).ToListAsync(cancellationToken);
+    public async Task<IReadOnlyList<SiemIngestionJob>> ListSiemIngestionJobsAsync(CancellationToken cancellationToken)
+    {
+        var jobs = await dbContext.SiemIngestionJobs
+            .OrderByDescending(job => job.StartedAtUtc)
+            .Take(2000)
+            .ToListAsync(cancellationToken);
+
+        return jobs
+            .GroupBy(job => job.SourceId?.ToString("N") ?? job.SourceName, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .OrderByDescending(job => job.StartedAtUtc)
+            .ToArray();
+    }
 
     public async Task AddAgentEnrolmentTokenAsync(AgentEnrolmentToken token, CancellationToken cancellationToken)
     {
