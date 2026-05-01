@@ -123,6 +123,13 @@ public sealed class DnsMonitoringService(IDnsLookupService dnsLookup, IFenrirDat
             throw new ArgumentException("Domain is not valid.", nameof(request));
         }
 
+        var existing = (await dataStore.ListMonitoredDomainsAsync(cancellationToken))
+            .FirstOrDefault(monitored => string.Equals(monitored.Domain, domain, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null)
+        {
+            return existing.ToDto();
+        }
+
         var monitoredDomain = new DnsMonitoredDomain
         {
             Domain = domain,

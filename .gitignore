@@ -11,3 +11,7 @@ TestResults/
 *.sln.docstates
 *.nupkg
 *.snupkg
+*.log
+*.db
+*.db-shm
+*.db-wal

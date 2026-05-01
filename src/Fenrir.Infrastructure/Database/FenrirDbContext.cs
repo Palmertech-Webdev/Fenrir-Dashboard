@@ -143,7 +143,11 @@ public sealed class FenrirDbContext(DbContextOptions<FenrirDbContext> options) :
             entity.HasIndex(securityEvent => securityEvent.Host);
             entity.HasIndex(securityEvent => securityEvent.EventType);
             entity.HasIndex(securityEvent => securityEvent.Severity);
-            entity.Property(securityEvent => securityEvent.RawJson).HasColumnType("jsonb");
+            if (Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                entity.Property(securityEvent => securityEvent.RawJson).HasColumnType("jsonb");
+            }
+
             entity.Property(securityEvent => securityEvent.Severity).HasMaxLength(64);
         });
 

@@ -94,6 +94,13 @@ public sealed class EfFenrirDataStore(FenrirDbContext dbContext) : IFenrirDataSt
 
     public async Task AddMonitoredDomainAsync(DnsMonitoredDomain domain, CancellationToken cancellationToken)
     {
+        var existing = await dbContext.DnsMonitoredDomains
+            .FirstOrDefaultAsync(current => current.Domain == domain.Domain, cancellationToken);
+        if (existing is not null)
+        {
+            return;
+        }
+
         dbContext.DnsMonitoredDomains.Add(domain);
         await dbContext.SaveChangesAsync(cancellationToken);
     }

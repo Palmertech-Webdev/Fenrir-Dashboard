@@ -13,7 +13,7 @@ Fenrir SOC Core is a .NET 10 modular-monolith backend for the MVP security modul
 
 ## Run Locally
 
-Use a local PostgreSQL instance, then run the API with the .NET SDK:
+Run the API with the .NET SDK:
 
 ```powershell
 dotnet restore
@@ -21,13 +21,15 @@ dotnet test Fenrir.SecurityPlatform.slnx
 dotnet run --project src/Fenrir.Api/Fenrir.Api.csproj
 ```
 
-The default development connection string is:
+Development uses a local SQLite database file by default so the dashboard tools work immediately with no Docker or PostgreSQL setup. The file is created automatically as `src/Fenrir.Api/fenrir-dev.db`.
+
+The default production/PostgreSQL connection string remains:
 
 ```text
 Host=localhost;Port=5432;Database=fenrir_soc_core;Username=fenrir;Password=fenrir_dev_password
 ```
 
-Override it with `ConnectionStrings__FenrirDb` or edit `src/Fenrir.Api/appsettings.json`.
+To use PostgreSQL locally, set `Database__Provider=Postgres` and override `ConnectionStrings__FenrirDb`, or edit the appsettings files.
 
 Once running, open:
 

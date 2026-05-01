@@ -90,6 +90,20 @@ public sealed class ModuleServiceTests
         Assert.NotNull(result.Finding);
         Assert.Single(store.Findings);
     }
+
+    [Fact]
+    public async Task DnsMonitoring_Returns_Existing_Monitored_Domain_On_Duplicate_Add()
+    {
+        var store = new InMemoryFenrirDataStore();
+        var service = new DnsMonitoringService(new StubDnsLookupService(), store);
+
+        var first = await service.AddMonitoredDomainAsync(new MonitoredDomainRequest("Example.com", "Owner A"), CancellationToken.None);
+        var second = await service.AddMonitoredDomainAsync(new MonitoredDomainRequest("example.com", "Owner B"), CancellationToken.None);
+        var monitored = await store.ListMonitoredDomainsAsync(CancellationToken.None);
+
+        Assert.Equal(first.Id, second.Id);
+        Assert.Single(monitored);
+    }
 }
 
 internal sealed class StubDnsLookupService : IDnsLookupService

@@ -15,10 +15,20 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddFenrirInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        var databaseProvider = configuration["Database:Provider"] ?? "Postgres";
         var connectionString = configuration.GetConnectionString("FenrirDb")
             ?? "Host=localhost;Port=5432;Database=fenrir_soc_core;Username=fenrir;Password=fenrir_dev_password";
 
-        services.AddDbContext<FenrirDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddDbContext<FenrirDbContext>(options =>
+        {
+            if (string.Equals(databaseProvider, "Sqlite", StringComparison.OrdinalIgnoreCase))
+            {
+                options.UseSqlite(connectionString);
+                return;
+            }
+
+            options.UseNpgsql(connectionString);
+        });
         services.AddScoped<IFenrirDataStore, EfFenrirDataStore>();
 
         services.AddSingleton<ILookupClient>(_ => new LookupClient());
