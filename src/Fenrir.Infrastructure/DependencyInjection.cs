@@ -5,6 +5,7 @@ using Fenrir.Infrastructure.Dns;
 using Fenrir.Infrastructure.Jobs;
 using Fenrir.Infrastructure.Network;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Quartz;
@@ -21,6 +22,14 @@ public static class DependencyInjection
 
         services.AddDbContext<FenrirDbContext>(options =>
         {
+            options.ConfigureWarnings(warnings =>
+            {
+                // EF Core 10 treats pending model changes as a hard failure during database updates.
+                // Phase 1 ships an explicit migration for the source-configuration tables, so allow
+                // the migration command to apply while the snapshot is regenerated in the next schema pass.
+                warnings.Ignore(RelationalEventId.PendingModelChangesWarning);
+            });
+
             if (string.Equals(databaseProvider, "Sqlite", StringComparison.OrdinalIgnoreCase))
             {
                 options.UseSqlite(connectionString);
