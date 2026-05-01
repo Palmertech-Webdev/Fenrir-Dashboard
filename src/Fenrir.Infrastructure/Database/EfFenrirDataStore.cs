@@ -264,13 +264,118 @@ public sealed class EfFenrirDataStore(FenrirDbContext dbContext) : IFenrirDataSt
     }
 
     public async Task<SiemLogSource?> GetSiemLogSourceAsync(Guid id, CancellationToken cancellationToken) =>
-        await dbContext.SiemLogSources.FindAsync([id], cancellationToken);
+        await dbContext.SiemLogSources
+            .Include(source => source.Config)
+            .Include(source => source.State)
+            .Include(source => source.SecretRefs)
+            .Include(source => source.HealthSnapshots.OrderByDescending(snapshot => snapshot.CapturedAtUtc).Take(10))
+            .FirstOrDefaultAsync(source => source.Id == id, cancellationToken);
 
     public async Task<SiemLogSource?> GetSiemLogSourceByNameAsync(string name, CancellationToken cancellationToken) =>
-        await dbContext.SiemLogSources.FirstOrDefaultAsync(source => source.Name == name, cancellationToken);
+        await dbContext.SiemLogSources
+            .Include(source => source.Config)
+            .Include(source => source.State)
+            .Include(source => source.SecretRefs)
+            .Include(source => source.HealthSnapshots.OrderByDescending(snapshot => snapshot.CapturedAtUtc).Take(10))
+            .FirstOrDefaultAsync(source => source.Name == name, cancellationToken);
 
     public async Task<IReadOnlyList<SiemLogSource>> ListSiemLogSourcesAsync(CancellationToken cancellationToken) =>
-        await dbContext.SiemLogSources.OrderBy(source => source.Name).ToListAsync(cancellationToken);
+        await dbContext.SiemLogSources
+            .Include(source => source.Config)
+            .Include(source => source.State)
+            .Include(source => source.SecretRefs)
+            .Include(source => source.HealthSnapshots.OrderByDescending(snapshot => snapshot.CapturedAtUtc).Take(10))
+            .OrderBy(source => source.Name)
+            .ToListAsync(cancellationToken);
+
+    public async Task UpsertSiemSourceConfigAsync(SiemSourceConfig config, CancellationToken cancellationToken)
+    {
+        var existing = await dbContext.SiemSourceConfigs.FirstOrDefaultAsync(current => current.SourceId == config.SourceId, cancellationToken);
+        if (existing is null)
+        {
+            dbContext.SiemSourceConfigs.Add(config);
+        }
+        else
+        {
+            existing.PollingIntervalSeconds = config.PollingIntervalSeconds;
+            existing.EndpointUrl = config.EndpointUrl;
+            existing.TenantId = config.TenantId;
+            existing.Region = config.Region;
+            existing.BucketName = config.BucketName;
+            existing.StreamName = config.StreamName;
+            existing.QueryFilter = config.QueryFilter;
+            existing.MaxBatchSize = config.MaxBatchSize;
+            existing.EnabledFromUtc = config.EnabledFromUtc;
+            existing.ConfigJson = config.ConfigJson;
+            existing.UpdatedAtUtc = DateTime.UtcNow;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpsertSiemSourceSecretRefAsync(SiemSourceSecretRef secretRef, CancellationToken cancellationToken)
+    {
+        var existing = await dbContext.SiemSourceSecretRefs.FirstOrDefaultAsync(
+            current => current.SourceId == secretRef.SourceId && current.SecretPurpose == secretRef.SecretPurpose,
+            cancellationToken);
+
+        if (existing is null)
+        {
+            dbContext.SiemSourceSecretRefs.Add(secretRef);
+        }
+        else
+        {
+            existing.SecretProvider = secretRef.SecretProvider;
+            existing.SecretKey = secretRef.SecretKey;
+            existing.UpdatedAtUtc = DateTime.UtcNow;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveSiemSourceSecretRefAsync(Guid sourceId, string secretPurpose, CancellationToken cancellationToken)
+    {
+        var existing = await dbContext.SiemSourceSecretRefs.FirstOrDefaultAsync(
+            current => current.SourceId == sourceId && current.SecretPurpose == secretPurpose,
+            cancellationToken);
+
+        if (existing is null)
+        {
+            return;
+        }
+
+        dbContext.SiemSourceSecretRefs.Remove(existing);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpsertSiemSourceStateAsync(SiemSourceState state, CancellationToken cancellationToken)
+    {
+        var existing = await dbContext.SiemSourceStates.FirstOrDefaultAsync(current => current.SourceId == state.SourceId, cancellationToken);
+        if (existing is null)
+        {
+            dbContext.SiemSourceStates.Add(state);
+        }
+        else
+        {
+            existing.ConnectorState = state.ConnectorState;
+            existing.CursorValue = state.CursorValue;
+            existing.LastPollStartedAtUtc = state.LastPollStartedAtUtc;
+            existing.LastPollCompletedAtUtc = state.LastPollCompletedAtUtc;
+            existing.LastEventTimestampUtc = state.LastEventTimestampUtc;
+            existing.NextPollAfterUtc = state.NextPollAfterUtc;
+            existing.ConsecutiveFailureCount = state.ConsecutiveFailureCount;
+            existing.LastError = state.LastError;
+            existing.UpdatedAtUtc = DateTime.UtcNow;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task AddSiemSourceHealthSnapshotAsync(SiemSourceHealthSnapshot snapshot, CancellationToken cancellationToken)
+    {
+        dbContext.SiemSourceHealthSnapshots.Add(snapshot);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 
     public async Task AddSiemIngestionJobAsync(SiemIngestionJob job, CancellationToken cancellationToken)
     {
