@@ -1,4 +1,6 @@
 using System;
+using Fenrir.Infrastructure.Database;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -6,6 +8,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Fenrir.Infrastructure.Migrations;
 
 /// <inheritdoc />
+[DbContext(typeof(FenrirDbContext))]
+[Migration("20260501141000_AddSiemIngestionTables")]
 public partial class AddSiemIngestionTables : Migration
 {
     /// <inheritdoc />
