@@ -11,6 +11,7 @@ public sealed class FenrirDbContext(DbContextOptions<FenrirDbContext> options) :
     public DbSet<Asset> Assets => Set<Asset>();
     public DbSet<AgentEnrolmentToken> AgentEnrolmentTokens => Set<AgentEnrolmentToken>();
     public DbSet<AgentEndpoint> AgentEndpoints => Set<AgentEndpoint>();
+    public DbSet<ThreatIntelSource> ThreatIntelSources => Set<ThreatIntelSource>();
     public DbSet<Indicator> Indicators => Set<Indicator>();
     public DbSet<EmailCheck> EmailChecks => Set<EmailCheck>();
     public DbSet<EmailHeaderCheck> EmailHeaderChecks => Set<EmailHeaderCheck>();
@@ -86,15 +87,34 @@ public sealed class FenrirDbContext(DbContextOptions<FenrirDbContext> options) :
             entity.Property(agent => agent.IpAddress).HasMaxLength(64);
         });
 
+        modelBuilder.Entity<ThreatIntelSource>(entity =>
+        {
+            entity.ToTable("ThreatIntelSources");
+            entity.HasIndex(source => source.Name).IsUnique();
+            entity.HasIndex(source => source.SourceType);
+            entity.HasIndex(source => source.IsEnabled);
+            entity.Property(source => source.Name).HasMaxLength(160);
+            entity.Property(source => source.SourceType).HasMaxLength(80);
+            entity.Property(source => source.EndpointUrl).HasMaxLength(2048);
+            entity.Property(source => source.SecretRef).HasMaxLength(512);
+            entity.Property(source => source.LastSyncStatus).HasMaxLength(80);
+        });
+
         modelBuilder.Entity<Indicator>(entity =>
         {
             entity.ToTable("Indicators");
             entity.HasIndex(indicator => indicator.NormalizedValue).IsUnique();
             entity.HasIndex(indicator => indicator.Type);
             entity.HasIndex(indicator => indicator.Verdict);
+            entity.HasIndex(indicator => indicator.Severity);
+            entity.HasIndex(indicator => indicator.Source);
+            entity.HasIndex(indicator => indicator.ExpiresAtUtc);
             entity.Property(indicator => indicator.Type).HasMaxLength(64);
             entity.Property(indicator => indicator.Verdict).HasMaxLength(64);
             entity.Property(indicator => indicator.Severity).HasMaxLength(64);
+            entity.Property(indicator => indicator.Source).HasMaxLength(160);
+            entity.Property(indicator => indicator.Tlp).HasMaxLength(32);
+            entity.Property(indicator => indicator.ExternalReference).HasMaxLength(2048);
         });
 
         modelBuilder.Entity<Finding>(entity =>
