@@ -19,6 +19,8 @@ public sealed class FenrirDbContext(DbContextOptions<FenrirDbContext> options) :
     public DbSet<NetworkScan> NetworkScans => Set<NetworkScan>();
     public DbSet<NetworkScanResult> NetworkScanResults => Set<NetworkScanResult>();
     public DbSet<SecurityEvent> SiemEvents => Set<SecurityEvent>();
+    public DbSet<SiemLogSource> SiemLogSources => Set<SiemLogSource>();
+    public DbSet<SiemIngestionJob> SiemIngestionJobs => Set<SiemIngestionJob>();
     public DbSet<Finding> Findings => Set<Finding>();
     public DbSet<JobRecord> Jobs => Set<JobRecord>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -139,9 +141,37 @@ public sealed class FenrirDbContext(DbContextOptions<FenrirDbContext> options) :
             entity.HasIndex(securityEvent => securityEvent.TimestampUtc);
             entity.HasIndex(securityEvent => securityEvent.Source);
             entity.HasIndex(securityEvent => securityEvent.Host);
+            entity.HasIndex(securityEvent => securityEvent.EventType);
             entity.HasIndex(securityEvent => securityEvent.Severity);
             entity.Property(securityEvent => securityEvent.RawJson).HasColumnType("jsonb");
             entity.Property(securityEvent => securityEvent.Severity).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<SiemLogSource>(entity =>
+        {
+            entity.ToTable("SiemLogSources");
+            entity.HasIndex(source => source.Name).IsUnique();
+            entity.HasIndex(source => source.SourceType);
+            entity.HasIndex(source => source.Status);
+            entity.Property(source => source.Name).HasMaxLength(160);
+            entity.Property(source => source.SourceType).HasMaxLength(80);
+            entity.Property(source => source.Vendor).HasMaxLength(100);
+            entity.Property(source => source.Product).HasMaxLength(120);
+            entity.Property(source => source.ConnectionType).HasMaxLength(80);
+            entity.Property(source => source.Parser).HasMaxLength(120);
+            entity.Property(source => source.Status).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<SiemIngestionJob>(entity =>
+        {
+            entity.ToTable("SiemIngestionJobs");
+            entity.HasIndex(job => job.Status);
+            entity.HasIndex(job => job.SourceId);
+            entity.HasIndex(job => job.StartedAtUtc);
+            entity.Property(job => job.SourceName).HasMaxLength(160);
+            entity.Property(job => job.InputType).HasMaxLength(64);
+            entity.Property(job => job.Parser).HasMaxLength(120);
+            entity.Property(job => job.Status).HasMaxLength(64);
         });
 
         modelBuilder.Entity<JobRecord>(entity =>
