@@ -1,0 +1,22 @@
+@Fenrir.Api_HostAddress = http://localhost:5248
+
+GET {{Fenrir.Api_HostAddress}}/health
+Accept: application/json
+
+###
+
+POST {{Fenrir.Api_HostAddress}}/api/email/verify
+Content-Type: application/json
+
+{
+  "email": "analyst@example.com"
+}
+
+###
+
+POST {{Fenrir.Api_HostAddress}}/api/iocs/check
+Content-Type: application/json
+
+{
+  "indicator": "malicious-domain.example"
+}

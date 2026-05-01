@@ -1,0 +1,134 @@
+using Fenrir.Contracts;
+using Fenrir.Domain.Entities;
+
+namespace Fenrir.Application.Abstractions;
+
+public interface IEmailVerificationService
+{
+    Task<EmailVerificationResponse> VerifyAsync(EmailVerificationRequest request, CancellationToken cancellationToken);
+}
+
+public interface IEmailHeaderCheckService
+{
+    Task<EmailHeaderCheckResponse> CheckAsync(EmailHeaderCheckRequest request, CancellationToken cancellationToken);
+}
+
+public interface IIocService
+{
+    Task<IocCheckResponse> CheckAsync(IocCheckRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<IocRecordDto>> ImportAsync(IocImportRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<IocRecordDto>> ListAsync(CancellationToken cancellationToken);
+}
+
+public interface IDnsMonitoringService
+{
+    Task<DnsDomainCheckResponse> CheckDomainAsync(DnsDomainCheckRequest request, CancellationToken cancellationToken);
+    Task<MonitoredDomainDto> AddMonitoredDomainAsync(MonitoredDomainRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<MonitoredDomainDto>> ListMonitoredDomainsAsync(CancellationToken cancellationToken);
+}
+
+public interface IDarkWebService
+{
+    Task<DarkWebCheckResponse> CheckAsync(DarkWebCheckRequest request, CancellationToken cancellationToken);
+}
+
+public interface INetworkScanningService
+{
+    Task<NetworkScanCreatedResponse> CreateScanAsync(NetworkScanRequest request, CancellationToken cancellationToken);
+    Task<NetworkScanDto?> GetScanAsync(Guid id, CancellationToken cancellationToken);
+}
+
+public interface INetworkScanExecutor
+{
+    Task ExecuteAsync(Guid scanId, Guid? jobRecordId, CancellationToken cancellationToken);
+}
+
+public interface ISiemService
+{
+    Task<SiemEventIngestResponse> IngestAsync(SiemEventRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<SiemEventDto>> ListAsync(string? source, string? host, string? severity, CancellationToken cancellationToken);
+}
+
+public interface IFindingService
+{
+    Task<IReadOnlyList<FindingDto>> ListAsync(CancellationToken cancellationToken);
+    Task<FindingDto?> GetAsync(Guid id, CancellationToken cancellationToken);
+    Task<FindingDto?> UpdateStatusAsync(Guid id, string status, CancellationToken cancellationToken);
+}
+
+public interface IJobService
+{
+    Task<IReadOnlyList<JobDto>> ListAsync(CancellationToken cancellationToken);
+    Task<JobDto?> GetAsync(Guid id, CancellationToken cancellationToken);
+}
+
+public interface IDarkWebProvider
+{
+    Task<DarkWebProviderResult> CheckEmailAsync(string email, CancellationToken cancellationToken);
+    Task<DarkWebProviderResult> CheckDomainAsync(string domain, CancellationToken cancellationToken);
+    Task<DarkWebProviderResult> CheckUsernameAsync(string username, CancellationToken cancellationToken);
+}
+
+public sealed record DarkWebProviderResult(bool Exposed, int BreachCount, IReadOnlyList<string> Sources);
+
+public interface IDnsLookupService
+{
+    Task<IReadOnlyList<string>> GetARecordsAsync(string domain, CancellationToken cancellationToken);
+    Task<IReadOnlyList<string>> GetAaaaRecordsAsync(string domain, CancellationToken cancellationToken);
+    Task<IReadOnlyList<string>> GetMxRecordsAsync(string domain, CancellationToken cancellationToken);
+    Task<IReadOnlyList<string>> GetTxtRecordsAsync(string domain, CancellationToken cancellationToken);
+    Task<IReadOnlyList<string>> GetNameServersAsync(string domain, CancellationToken cancellationToken);
+    Task<IReadOnlyList<string>> GetCaaRecordsAsync(string domain, CancellationToken cancellationToken);
+    Task<bool> HasDnsSecAsync(string domain, CancellationToken cancellationToken);
+}
+
+public interface IBackgroundJobScheduler
+{
+    Task ScheduleNetworkScanAsync(Guid scanId, Guid jobRecordId, CancellationToken cancellationToken);
+}
+
+public interface INetworkProbe
+{
+    Task<PortProbeResult> ProbeAsync(string host, int port, TimeSpan timeout, CancellationToken cancellationToken);
+}
+
+public sealed record PortProbeResult(bool IsOpen, string? Banner);
+
+public interface IFenrirDataStore
+{
+    Task AddAuditLogAsync(AuditLog auditLog, CancellationToken cancellationToken);
+    Task AddFindingAsync(Finding finding, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Finding>> ListFindingsAsync(CancellationToken cancellationToken);
+    Task<Finding?> GetFindingAsync(Guid id, CancellationToken cancellationToken);
+    Task UpdateFindingAsync(Finding finding, CancellationToken cancellationToken);
+
+    Task AddEmailCheckAsync(EmailCheck check, CancellationToken cancellationToken);
+    Task AddEmailHeaderCheckAsync(EmailHeaderCheck check, CancellationToken cancellationToken);
+
+    Task<Indicator?> FindIndicatorAsync(string normalizedIndicator, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Indicator>> FindIndicatorsAsync(IEnumerable<string> normalizedIndicators, CancellationToken cancellationToken);
+    Task<IReadOnlyList<Indicator>> ListIndicatorsAsync(CancellationToken cancellationToken);
+    Task UpsertIndicatorsAsync(IEnumerable<Indicator> indicators, CancellationToken cancellationToken);
+
+    Task AddDnsCheckAsync(DnsCheck check, CancellationToken cancellationToken);
+    Task<DnsCheck?> GetLatestDnsCheckAsync(string domain, CancellationToken cancellationToken);
+    Task AddMonitoredDomainAsync(DnsMonitoredDomain domain, CancellationToken cancellationToken);
+    Task<IReadOnlyList<DnsMonitoredDomain>> ListMonitoredDomainsAsync(CancellationToken cancellationToken);
+
+    Task AddDarkWebCheckAsync(DarkWebCheck check, CancellationToken cancellationToken);
+
+    Task AddNetworkScanAsync(NetworkScan scan, CancellationToken cancellationToken);
+    Task UpdateNetworkScanAsync(NetworkScan scan, CancellationToken cancellationToken);
+    Task<NetworkScan?> GetNetworkScanAsync(Guid id, CancellationToken cancellationToken);
+    Task<IReadOnlyList<NetworkScanResult>> GetNetworkScanResultsAsync(Guid scanId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<NetworkScanResult>> GetPreviousOpenNetworkScanResultsAsync(string target, Guid currentScanId, CancellationToken cancellationToken);
+    Task AddNetworkScanResultsAsync(IEnumerable<NetworkScanResult> results, CancellationToken cancellationToken);
+
+    Task AddSecurityEventAsync(SecurityEvent securityEvent, CancellationToken cancellationToken);
+    Task<IReadOnlyList<SecurityEvent>> ListSecurityEventsAsync(string? source, string? host, string? severity, CancellationToken cancellationToken);
+
+    Task AddJobAsync(JobRecord job, CancellationToken cancellationToken);
+    Task<JobRecord?> GetJobAsync(Guid id, CancellationToken cancellationToken);
+    Task<IReadOnlyList<JobRecord>> ListJobsAsync(CancellationToken cancellationToken);
+    Task UpdateJobAsync(JobRecord job, CancellationToken cancellationToken);
+}

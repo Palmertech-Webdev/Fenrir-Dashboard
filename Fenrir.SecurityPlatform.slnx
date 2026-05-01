@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Fenrir.Api/Fenrir.Api.csproj" />
+    <Project Path="src/Fenrir.Application/Fenrir.Application.csproj" />
+    <Project Path="src/Fenrir.Contracts/Fenrir.Contracts.csproj" />
+    <Project Path="src/Fenrir.Domain/Fenrir.Domain.csproj" />
+    <Project Path="src/Fenrir.Infrastructure/Fenrir.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Fenrir.Tests/Fenrir.Tests.csproj" />
+  </Folder>
+</Solution>
