@@ -68,6 +68,23 @@ public class AgentEndpoint
     public bool IsEnabled { get; set; } = true;
 }
 
+public class ThreatIntelSource
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "";
+    public string SourceType { get; set; } = "local";
+    public string? EndpointUrl { get; set; }
+    public string? SecretRef { get; set; }
+    public bool IsEnabled { get; set; } = true;
+    public int SyncIntervalMinutes { get; set; } = 60;
+    public DateTime? LastSyncStartedAtUtc { get; set; }
+    public DateTime? LastSyncCompletedAtUtc { get; set; }
+    public string? LastSyncStatus { get; set; }
+    public string? LastError { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
 public class Indicator
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -79,8 +96,12 @@ public class Indicator
     public int Confidence { get; set; }
     public string Source { get; set; } = "";
     public List<string> Tags { get; set; } = [];
+    public string? Tlp { get; set; }
+    public string? Description { get; set; }
+    public string? ExternalReference { get; set; }
     public DateTime FirstSeenUtc { get; set; } = DateTime.UtcNow;
     public DateTime LastSeenUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? ExpiresAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
