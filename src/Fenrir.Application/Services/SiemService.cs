@@ -73,11 +73,34 @@ public sealed partial class SiemService(IFenrirDataStore dataStore) : ISiemServi
             var source = await dataStore.GetSiemLogSourceAsync(request.SourceId.Value, cancellationToken);
             if (source is not null)
             {
-                source.LastSeenAtUtc = DateTime.UtcNow;
-                source.LastSuccessfulIngestAtUtc = acceptedEvents.Count > 0 ? DateTime.UtcNow : source.LastSuccessfulIngestAtUtc;
+                var now = DateTime.UtcNow;
+                source.LastSeenAtUtc = now;
+                source.LastSuccessfulIngestAtUtc = acceptedEvents.Count > 0 ? now : source.LastSuccessfulIngestAtUtc;
                 source.Status = failed == 0 ? "Healthy" : "Warning";
-                source.UpdatedAtUtc = DateTime.UtcNow;
+                source.UpdatedAtUtc = now;
                 await dataStore.UpdateSiemLogSourceAsync(source, cancellationToken);
+
+                await dataStore.UpsertSiemSourceStateAsync(new SiemSourceState
+                {
+                    SourceId = source.Id,
+                    ConnectorState = failed == 0 ? "Healthy" : "Warning",
+                    LastPollCompletedAtUtc = now,
+                    LastEventTimestampUtc = acceptedEvents.Count > 0 ? acceptedEvents.Max(securityEvent => securityEvent.TimestampUtc) : source.State?.LastEventTimestampUtc,
+                    ConsecutiveFailureCount = failed == 0 ? 0 : (source.State?.ConsecutiveFailureCount ?? 0) + 1,
+                    LastError = failed == 0 ? null : $"{failed} event(s) failed parsing during batch ingest."
+                }, cancellationToken);
+
+                await dataStore.AddSiemSourceHealthSnapshotAsync(new SiemSourceHealthSnapshot
+                {
+                    SourceId = source.Id,
+                    Status = source.Status,
+                    EventsReceivedLastInterval = request.Events.Count,
+                    EventsParsedLastInterval = acceptedEvents.Count,
+                    EventsFailedLastInterval = failed,
+                    ParseFailureRate = request.Events.Count == 0 ? 0 : Math.Round((double)failed / request.Events.Count, 4),
+                    LagSeconds = 0,
+                    Message = failed == 0 ? "Batch ingest completed successfully." : $"Batch ingest completed with {failed} failed event(s)."
+                }, cancellationToken);
             }
         }
 
@@ -119,10 +142,11 @@ public sealed partial class SiemService(IFenrirDataStore dataStore) : ISiemServi
     {
         var name = request.Name.Trim();
         var existing = await dataStore.GetSiemLogSourceByNameAsync(name, cancellationToken);
+        SiemLogSource source;
 
         if (existing is null)
         {
-            var source = new SiemLogSource
+            source = new SiemLogSource
             {
                 Name = name,
                 SourceType = NormaliseOrDefault(request.SourceType, "manual_upload"),
@@ -136,26 +160,184 @@ public sealed partial class SiemService(IFenrirDataStore dataStore) : ISiemServi
             };
 
             await dataStore.AddSiemLogSourceAsync(source, cancellationToken);
-            return source.ToDto();
+        }
+        else
+        {
+            source = existing;
+            source.SourceType = NormaliseOrDefault(request.SourceType, source.SourceType);
+            source.Vendor = NormaliseOrDefault(request.Vendor, source.Vendor);
+            source.Product = NormaliseOrDefault(request.Product, source.Product);
+            source.ConnectionType = NormaliseOrDefault(request.ConnectionType, source.ConnectionType);
+            source.Parser = NormaliseOrDefault(request.Parser, source.Parser);
+            source.Description = request.Description;
+            source.IsEnabled = request.IsEnabled;
+            source.Status = request.IsEnabled ? source.Status == "Disabled" ? "Healthy" : source.Status : "Disabled";
+            source.UpdatedAtUtc = DateTime.UtcNow;
+            await dataStore.UpdateSiemLogSourceAsync(source, cancellationToken);
         }
 
-        existing.SourceType = NormaliseOrDefault(request.SourceType, existing.SourceType);
-        existing.Vendor = NormaliseOrDefault(request.Vendor, existing.Vendor);
-        existing.Product = NormaliseOrDefault(request.Product, existing.Product);
-        existing.ConnectionType = NormaliseOrDefault(request.ConnectionType, existing.ConnectionType);
-        existing.Parser = NormaliseOrDefault(request.Parser, existing.Parser);
-        existing.Description = request.Description;
-        existing.IsEnabled = request.IsEnabled;
-        existing.Status = request.IsEnabled ? existing.Status == "Disabled" ? "Healthy" : existing.Status : "Disabled";
-        existing.UpdatedAtUtc = DateTime.UtcNow;
-        await dataStore.UpdateSiemLogSourceAsync(existing, cancellationToken);
-        return existing.ToDto();
+        if (request.Config is not null)
+        {
+            await dataStore.UpsertSiemSourceConfigAsync(BuildSourceConfig(source.Id, request.Config, source.Config), cancellationToken);
+        }
+
+        if (request.SecretRefs is not null)
+        {
+            foreach (var secretRef in request.SecretRefs)
+            {
+                await dataStore.UpsertSiemSourceSecretRefAsync(BuildSecretRef(source.Id, secretRef), cancellationToken);
+            }
+        }
+
+        await dataStore.UpsertSiemSourceStateAsync(new SiemSourceState
+        {
+            SourceId = source.Id,
+            ConnectorState = source.IsEnabled ? "Ready" : "Disabled",
+            ConsecutiveFailureCount = 0
+        }, cancellationToken);
+
+        var saved = await dataStore.GetSiemLogSourceAsync(source.Id, cancellationToken) ?? source;
+        return saved.ToDto();
     }
 
     public async Task<IReadOnlyList<SiemSourceDto>> ListSourcesAsync(CancellationToken cancellationToken)
     {
         var sources = await dataStore.ListSiemLogSourcesAsync(cancellationToken);
         return sources.Select(source => source.ToDto()).ToArray();
+    }
+
+    public async Task<SiemSourceDto?> GetSourceAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var source = await dataStore.GetSiemLogSourceAsync(id, cancellationToken);
+        return source?.ToDto();
+    }
+
+    public async Task<SiemSourceDto?> UpdateSourceAsync(Guid id, SiemSourceUpdateRequest request, CancellationToken cancellationToken)
+    {
+        var source = await dataStore.GetSiemLogSourceAsync(id, cancellationToken);
+        if (source is null)
+        {
+            return null;
+        }
+
+        source.Name = NormaliseOrDefault(request.Name, source.Name);
+        source.SourceType = NormaliseOrDefault(request.SourceType, source.SourceType);
+        source.Vendor = NormaliseOrDefault(request.Vendor, source.Vendor);
+        source.Product = NormaliseOrDefault(request.Product, source.Product);
+        source.ConnectionType = NormaliseOrDefault(request.ConnectionType, source.ConnectionType);
+        source.Parser = NormaliseOrDefault(request.Parser, source.Parser);
+        source.Description = request.Description ?? source.Description;
+
+        if (request.IsEnabled.HasValue)
+        {
+            source.IsEnabled = request.IsEnabled.Value;
+            source.Status = source.IsEnabled ? source.Status == "Disabled" ? "Healthy" : source.Status : "Disabled";
+        }
+
+        source.Status = NormaliseOrDefault(request.Status, source.Status);
+        source.UpdatedAtUtc = DateTime.UtcNow;
+        await dataStore.UpdateSiemLogSourceAsync(source, cancellationToken);
+
+        if (request.IsEnabled.HasValue)
+        {
+            await dataStore.UpsertSiemSourceStateAsync(new SiemSourceState
+            {
+                SourceId = source.Id,
+                ConnectorState = source.IsEnabled ? "Ready" : "Disabled",
+                ConsecutiveFailureCount = source.State?.ConsecutiveFailureCount ?? 0,
+                LastError = source.IsEnabled ? source.State?.LastError : null
+            }, cancellationToken);
+        }
+
+        return (await dataStore.GetSiemLogSourceAsync(id, cancellationToken))?.ToDto();
+    }
+
+    public async Task<SiemSourceDto?> UpdateSourceConfigAsync(Guid id, SiemSourceConfigRequest request, CancellationToken cancellationToken)
+    {
+        var source = await dataStore.GetSiemLogSourceAsync(id, cancellationToken);
+        if (source is null)
+        {
+            return null;
+        }
+
+        await dataStore.UpsertSiemSourceConfigAsync(BuildSourceConfig(id, request, source.Config), cancellationToken);
+        return (await dataStore.GetSiemLogSourceAsync(id, cancellationToken))?.ToDto();
+    }
+
+    public async Task<SiemSourceDto?> AddOrUpdateSecretRefAsync(Guid id, SiemSourceSecretRefRequest request, CancellationToken cancellationToken)
+    {
+        var source = await dataStore.GetSiemLogSourceAsync(id, cancellationToken);
+        if (source is null)
+        {
+            return null;
+        }
+
+        await dataStore.UpsertSiemSourceSecretRefAsync(BuildSecretRef(id, request), cancellationToken);
+        return (await dataStore.GetSiemLogSourceAsync(id, cancellationToken))?.ToDto();
+    }
+
+    public async Task<SiemSourceDto?> RemoveSecretRefAsync(Guid id, string secretPurpose, CancellationToken cancellationToken)
+    {
+        var source = await dataStore.GetSiemLogSourceAsync(id, cancellationToken);
+        if (source is null)
+        {
+            return null;
+        }
+
+        await dataStore.RemoveSiemSourceSecretRefAsync(id, secretPurpose, cancellationToken);
+        return (await dataStore.GetSiemLogSourceAsync(id, cancellationToken))?.ToDto();
+    }
+
+    public async Task<SiemSourceDto?> UpdateSourceStateAsync(Guid id, SiemSourceStateRequest request, CancellationToken cancellationToken)
+    {
+        var source = await dataStore.GetSiemLogSourceAsync(id, cancellationToken);
+        if (source is null)
+        {
+            return null;
+        }
+
+        await dataStore.UpsertSiemSourceStateAsync(new SiemSourceState
+        {
+            SourceId = id,
+            ConnectorState = NormaliseOrDefault(request.ConnectorState, source.State?.ConnectorState ?? "Ready"),
+            CursorValue = request.CursorValue ?? source.State?.CursorValue,
+            LastPollStartedAtUtc = request.LastPollStartedAtUtc ?? source.State?.LastPollStartedAtUtc,
+            LastPollCompletedAtUtc = request.LastPollCompletedAtUtc ?? source.State?.LastPollCompletedAtUtc,
+            LastEventTimestampUtc = request.LastEventTimestampUtc ?? source.State?.LastEventTimestampUtc,
+            NextPollAfterUtc = request.NextPollAfterUtc ?? source.State?.NextPollAfterUtc,
+            ConsecutiveFailureCount = request.ConsecutiveFailureCount ?? source.State?.ConsecutiveFailureCount ?? 0,
+            LastError = request.LastError ?? source.State?.LastError
+        }, cancellationToken);
+
+        return (await dataStore.GetSiemLogSourceAsync(id, cancellationToken))?.ToDto();
+    }
+
+    public async Task<SiemSourceDto?> AddHealthSnapshotAsync(Guid id, SiemSourceHealthSnapshotRequest request, CancellationToken cancellationToken)
+    {
+        var source = await dataStore.GetSiemLogSourceAsync(id, cancellationToken);
+        if (source is null)
+        {
+            return null;
+        }
+
+        var status = NormaliseOrDefault(request.Status, source.Status);
+        await dataStore.AddSiemSourceHealthSnapshotAsync(new SiemSourceHealthSnapshot
+        {
+            SourceId = id,
+            Status = status,
+            EventsReceivedLastInterval = request.EventsReceivedLastInterval,
+            EventsParsedLastInterval = request.EventsParsedLastInterval,
+            EventsFailedLastInterval = request.EventsFailedLastInterval,
+            ParseFailureRate = request.ParseFailureRate,
+            LagSeconds = request.LagSeconds,
+            Message = request.Message
+        }, cancellationToken);
+
+        source.Status = status;
+        source.UpdatedAtUtc = DateTime.UtcNow;
+        await dataStore.UpdateSiemLogSourceAsync(source, cancellationToken);
+
+        return (await dataStore.GetSiemLogSourceAsync(id, cancellationToken))?.ToDto();
     }
 
     public async Task<IReadOnlyList<SiemIngestionJobDto>> ListIngestionJobsAsync(CancellationToken cancellationToken)
@@ -168,6 +350,35 @@ public sealed partial class SiemService(IFenrirDataStore dataStore) : ISiemServi
     {
         var job = await dataStore.GetSiemIngestionJobAsync(id, cancellationToken);
         return job?.ToDto();
+    }
+
+    private static SiemSourceConfig BuildSourceConfig(Guid sourceId, SiemSourceConfigRequest request, SiemSourceConfig? existing)
+    {
+        return new SiemSourceConfig
+        {
+            SourceId = sourceId,
+            PollingIntervalSeconds = Math.Clamp(request.PollingIntervalSeconds ?? existing?.PollingIntervalSeconds ?? 300, 30, 86_400),
+            EndpointUrl = request.EndpointUrl ?? existing?.EndpointUrl,
+            TenantId = request.TenantId ?? existing?.TenantId,
+            Region = request.Region ?? existing?.Region,
+            BucketName = request.BucketName ?? existing?.BucketName,
+            StreamName = request.StreamName ?? existing?.StreamName,
+            QueryFilter = request.QueryFilter ?? existing?.QueryFilter,
+            MaxBatchSize = Math.Clamp(request.MaxBatchSize ?? existing?.MaxBatchSize ?? 1000, 1, 100_000),
+            EnabledFromUtc = request.EnabledFromUtc ?? existing?.EnabledFromUtc,
+            ConfigJson = SanitiseJsonOrDefault(request.ConfigJson ?? existing?.ConfigJson, "{}")
+        };
+    }
+
+    private static SiemSourceSecretRef BuildSecretRef(Guid sourceId, SiemSourceSecretRefRequest request)
+    {
+        return new SiemSourceSecretRef
+        {
+            SourceId = sourceId,
+            SecretPurpose = NormaliseOrDefault(request.SecretPurpose, "credential"),
+            SecretProvider = NormaliseOrDefault(request.SecretProvider, "LocalUserSecrets"),
+            SecretKey = NormaliseOrDefault(request.SecretKey, string.Empty)
+        };
     }
 
     private static SecurityEvent BuildSecurityEvent(SiemEventRequest request, string fallbackSource, string parser)
@@ -238,6 +449,24 @@ public sealed partial class SiemService(IFenrirDataStore dataStore) : ISiemServi
     }
 
     private static string NormaliseOrDefault(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+
+    private static string SanitiseJsonOrDefault(string? value, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return fallback;
+        }
+
+        try
+        {
+            using var _ = JsonDocument.Parse(value);
+            return value;
+        }
+        catch
+        {
+            return fallback;
+        }
+    }
 
     private static bool IsHighSeverity(string severity) =>
         string.Equals(severity, FindingSeverity.High, StringComparison.OrdinalIgnoreCase)
