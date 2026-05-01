@@ -143,16 +143,41 @@ public sealed class FenrirDbContext(DbContextOptions<FenrirDbContext> options) :
         {
             entity.ToTable("SiemEvents");
             entity.HasIndex(securityEvent => securityEvent.TimestampUtc);
+            entity.HasIndex(securityEvent => securityEvent.SourceId);
             entity.HasIndex(securityEvent => securityEvent.Source);
+            entity.HasIndex(securityEvent => securityEvent.SourceName);
             entity.HasIndex(securityEvent => securityEvent.Host);
             entity.HasIndex(securityEvent => securityEvent.EventType);
+            entity.HasIndex(securityEvent => securityEvent.EventCategory);
             entity.HasIndex(securityEvent => securityEvent.Severity);
+            entity.HasIndex(securityEvent => securityEvent.User);
+            entity.HasIndex(securityEvent => securityEvent.SourceIp);
+            entity.HasIndex(securityEvent => securityEvent.DestinationIp);
+            entity.HasIndex(securityEvent => securityEvent.Domain);
+            entity.HasIndex(securityEvent => securityEvent.FileHashSha256);
+            entity.HasIndex(securityEvent => securityEvent.Action);
+            entity.Property(securityEvent => securityEvent.Source).HasMaxLength(160);
+            entity.Property(securityEvent => securityEvent.SourceName).HasMaxLength(160);
+            entity.Property(securityEvent => securityEvent.Vendor).HasMaxLength(100);
+            entity.Property(securityEvent => securityEvent.Product).HasMaxLength(120);
+            entity.Property(securityEvent => securityEvent.Host).HasMaxLength(255);
+            entity.Property(securityEvent => securityEvent.EventType).HasMaxLength(160);
+            entity.Property(securityEvent => securityEvent.EventCategory).HasMaxLength(120);
+            entity.Property(securityEvent => securityEvent.Severity).HasMaxLength(64);
+            entity.Property(securityEvent => securityEvent.User).HasMaxLength(320);
+            entity.Property(securityEvent => securityEvent.SourceIp).HasMaxLength(64);
+            entity.Property(securityEvent => securityEvent.DestinationIp).HasMaxLength(64);
+            entity.Property(securityEvent => securityEvent.Domain).HasMaxLength(253);
+            entity.Property(securityEvent => securityEvent.Url).HasMaxLength(2048);
+            entity.Property(securityEvent => securityEvent.FileHashSha256).HasMaxLength(64);
+            entity.Property(securityEvent => securityEvent.Mailbox).HasMaxLength(320);
+            entity.Property(securityEvent => securityEvent.CloudTenantId).HasMaxLength(160);
+            entity.Property(securityEvent => securityEvent.Action).HasMaxLength(160);
+            entity.Property(securityEvent => securityEvent.Outcome).HasMaxLength(80);
             if (Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true)
             {
                 entity.Property(securityEvent => securityEvent.RawJson).HasColumnType("jsonb");
             }
-
-            entity.Property(securityEvent => securityEvent.Severity).HasMaxLength(64);
         });
 
         modelBuilder.Entity<SiemLogSource>(entity =>
