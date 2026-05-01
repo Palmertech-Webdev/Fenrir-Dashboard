@@ -84,7 +84,15 @@ public sealed record SiemSourceHealthSnapshotRequest(
     int EventsFailedLastInterval = 0,
     double ParseFailureRate = 0,
     int LagSeconds = 0,
-    string? Message = null);
+    string? Message = null,
+    DateTime? LastPollAtUtc = null,
+    DateTime? LastSuccessfulIngestAtUtc = null,
+    int EventsReceivedLast15Minutes = 0,
+    int EventsParsedLast15Minutes = 0,
+    int EventsFailedLast15Minutes = 0,
+    int AverageIngestLatencyMs = 0,
+    int QueueBacklog = 0,
+    string? LastError = null);
 
 public sealed record SiemSourceDto(
     Guid Id,
@@ -150,11 +158,19 @@ public sealed record SiemSourceHealthSnapshotDto(
     Guid SourceId,
     DateTime CapturedAtUtc,
     string Status,
+    DateTime? LastPollAtUtc,
+    DateTime? LastSuccessfulIngestAtUtc,
     int EventsReceivedLastInterval,
     int EventsParsedLastInterval,
     int EventsFailedLastInterval,
+    int EventsReceivedLast15Minutes,
+    int EventsParsedLast15Minutes,
+    int EventsFailedLast15Minutes,
     double ParseFailureRate,
+    int AverageIngestLatencyMs,
     int LagSeconds,
+    int QueueBacklog,
+    string? LastError,
     string? Message);
 
 public sealed record SiemIngestionJobDto(
