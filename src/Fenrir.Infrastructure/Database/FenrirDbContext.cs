@@ -20,6 +20,10 @@ public sealed class FenrirDbContext(DbContextOptions<FenrirDbContext> options) :
     public DbSet<NetworkScanResult> NetworkScanResults => Set<NetworkScanResult>();
     public DbSet<SecurityEvent> SiemEvents => Set<SecurityEvent>();
     public DbSet<SiemLogSource> SiemLogSources => Set<SiemLogSource>();
+    public DbSet<SiemSourceConfig> SiemSourceConfigs => Set<SiemSourceConfig>();
+    public DbSet<SiemSourceSecretRef> SiemSourceSecretRefs => Set<SiemSourceSecretRef>();
+    public DbSet<SiemSourceState> SiemSourceStates => Set<SiemSourceState>();
+    public DbSet<SiemSourceHealthSnapshot> SiemSourceHealthSnapshots => Set<SiemSourceHealthSnapshot>();
     public DbSet<SiemIngestionJob> SiemIngestionJobs => Set<SiemIngestionJob>();
     public DbSet<Finding> Findings => Set<Finding>();
     public DbSet<JobRecord> Jobs => Set<JobRecord>();
@@ -164,6 +168,64 @@ public sealed class FenrirDbContext(DbContextOptions<FenrirDbContext> options) :
             entity.Property(source => source.ConnectionType).HasMaxLength(80);
             entity.Property(source => source.Parser).HasMaxLength(120);
             entity.Property(source => source.Status).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<SiemSourceConfig>(entity =>
+        {
+            entity.ToTable("SiemSourceConfigs");
+            entity.HasIndex(config => config.SourceId).IsUnique();
+            entity.Property(config => config.EndpointUrl).HasMaxLength(2048);
+            entity.Property(config => config.TenantId).HasMaxLength(160);
+            entity.Property(config => config.Region).HasMaxLength(80);
+            entity.Property(config => config.BucketName).HasMaxLength(255);
+            entity.Property(config => config.StreamName).HasMaxLength(255);
+            if (Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                entity.Property(config => config.ConfigJson).HasColumnType("jsonb");
+            }
+
+            entity.HasOne(config => config.Source)
+                .WithOne(source => source.Config)
+                .HasForeignKey<SiemSourceConfig>(config => config.SourceId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SiemSourceSecretRef>(entity =>
+        {
+            entity.ToTable("SiemSourceSecretRefs");
+            entity.HasIndex(secret => new { secret.SourceId, secret.SecretPurpose }).IsUnique();
+            entity.Property(secret => secret.SecretPurpose).HasMaxLength(120);
+            entity.Property(secret => secret.SecretProvider).HasMaxLength(120);
+            entity.Property(secret => secret.SecretKey).HasMaxLength(512);
+            entity.HasOne(secret => secret.Source)
+                .WithMany(source => source.SecretRefs)
+                .HasForeignKey(secret => secret.SourceId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SiemSourceState>(entity =>
+        {
+            entity.ToTable("SiemSourceStates");
+            entity.HasIndex(state => state.SourceId).IsUnique();
+            entity.HasIndex(state => state.ConnectorState);
+            entity.Property(state => state.ConnectorState).HasMaxLength(80);
+            entity.HasOne(state => state.Source)
+                .WithOne(source => source.State)
+                .HasForeignKey<SiemSourceState>(state => state.SourceId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SiemSourceHealthSnapshot>(entity =>
+        {
+            entity.ToTable("SiemSourceHealthSnapshots");
+            entity.HasIndex(snapshot => snapshot.SourceId);
+            entity.HasIndex(snapshot => snapshot.CapturedAtUtc);
+            entity.HasIndex(snapshot => snapshot.Status);
+            entity.Property(snapshot => snapshot.Status).HasMaxLength(80);
+            entity.HasOne(snapshot => snapshot.Source)
+                .WithMany(source => source.HealthSnapshots)
+                .HasForeignKey(snapshot => snapshot.SourceId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<SiemIngestionJob>(entity =>

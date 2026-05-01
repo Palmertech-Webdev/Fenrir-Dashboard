@@ -16,6 +16,78 @@ public class SiemLogSource
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? LastSeenAtUtc { get; set; }
     public DateTime? LastSuccessfulIngestAtUtc { get; set; }
+
+    public SiemSourceConfig? Config { get; set; }
+    public SiemSourceState? State { get; set; }
+    public List<SiemSourceSecretRef> SecretRefs { get; set; } = [];
+    public List<SiemSourceHealthSnapshot> HealthSnapshots { get; set; } = [];
+}
+
+public class SiemSourceConfig
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid SourceId { get; set; }
+    public int PollingIntervalSeconds { get; set; } = 300;
+    public string? EndpointUrl { get; set; }
+    public string? TenantId { get; set; }
+    public string? Region { get; set; }
+    public string? BucketName { get; set; }
+    public string? StreamName { get; set; }
+    public string? QueryFilter { get; set; }
+    public int MaxBatchSize { get; set; } = 1000;
+    public DateTime? EnabledFromUtc { get; set; }
+    public string ConfigJson { get; set; } = "{}";
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public SiemLogSource? Source { get; set; }
+}
+
+public class SiemSourceSecretRef
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid SourceId { get; set; }
+    public string SecretPurpose { get; set; } = "credential";
+    public string SecretProvider { get; set; } = "LocalUserSecrets";
+    public string SecretKey { get; set; } = "";
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public SiemLogSource? Source { get; set; }
+}
+
+public class SiemSourceState
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid SourceId { get; set; }
+    public string ConnectorState { get; set; } = "NotStarted";
+    public string? CursorValue { get; set; }
+    public DateTime? LastPollStartedAtUtc { get; set; }
+    public DateTime? LastPollCompletedAtUtc { get; set; }
+    public DateTime? LastEventTimestampUtc { get; set; }
+    public DateTime? NextPollAfterUtc { get; set; }
+    public int ConsecutiveFailureCount { get; set; }
+    public string? LastError { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public SiemLogSource? Source { get; set; }
+}
+
+public class SiemSourceHealthSnapshot
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid SourceId { get; set; }
+    public DateTime CapturedAtUtc { get; set; } = DateTime.UtcNow;
+    public string Status { get; set; } = "Unknown";
+    public int EventsReceivedLastInterval { get; set; }
+    public int EventsParsedLastInterval { get; set; }
+    public int EventsFailedLastInterval { get; set; }
+    public double ParseFailureRate { get; set; }
+    public int LagSeconds { get; set; }
+    public string? Message { get; set; }
+
+    public SiemLogSource? Source { get; set; }
 }
 
 public class SiemIngestionJob

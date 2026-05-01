@@ -95,7 +95,70 @@ public static class ContractMapping
             source.CreatedAtUtc,
             source.UpdatedAtUtc,
             source.LastSeenAtUtc,
-            source.LastSuccessfulIngestAtUtc);
+            source.LastSuccessfulIngestAtUtc,
+            source.Config?.ToDto(),
+            source.State?.ToDto(),
+            source.SecretRefs.Select(secret => secret.ToDto()).ToArray(),
+            source.HealthSnapshots
+                .OrderByDescending(snapshot => snapshot.CapturedAtUtc)
+                .Take(10)
+                .Select(snapshot => snapshot.ToDto())
+                .ToArray());
+
+    public static SiemSourceConfigDto ToDto(this SiemSourceConfig config) =>
+        new(
+            config.Id,
+            config.SourceId,
+            config.PollingIntervalSeconds,
+            config.EndpointUrl,
+            config.TenantId,
+            config.Region,
+            config.BucketName,
+            config.StreamName,
+            config.QueryFilter,
+            config.MaxBatchSize,
+            config.EnabledFromUtc,
+            config.ConfigJson,
+            config.CreatedAtUtc,
+            config.UpdatedAtUtc);
+
+    public static SiemSourceSecretRefDto ToDto(this SiemSourceSecretRef secretRef) =>
+        new(
+            secretRef.Id,
+            secretRef.SourceId,
+            secretRef.SecretPurpose,
+            secretRef.SecretProvider,
+            secretRef.SecretKey,
+            secretRef.CreatedAtUtc,
+            secretRef.UpdatedAtUtc);
+
+    public static SiemSourceStateDto ToDto(this SiemSourceState state) =>
+        new(
+            state.Id,
+            state.SourceId,
+            state.ConnectorState,
+            state.CursorValue,
+            state.LastPollStartedAtUtc,
+            state.LastPollCompletedAtUtc,
+            state.LastEventTimestampUtc,
+            state.NextPollAfterUtc,
+            state.ConsecutiveFailureCount,
+            state.LastError,
+            state.CreatedAtUtc,
+            state.UpdatedAtUtc);
+
+    public static SiemSourceHealthSnapshotDto ToDto(this SiemSourceHealthSnapshot snapshot) =>
+        new(
+            snapshot.Id,
+            snapshot.SourceId,
+            snapshot.CapturedAtUtc,
+            snapshot.Status,
+            snapshot.EventsReceivedLastInterval,
+            snapshot.EventsParsedLastInterval,
+            snapshot.EventsFailedLastInterval,
+            snapshot.ParseFailureRate,
+            snapshot.LagSeconds,
+            snapshot.Message);
 
     public static SiemIngestionJobDto ToDto(this SiemIngestionJob job) =>
         new(

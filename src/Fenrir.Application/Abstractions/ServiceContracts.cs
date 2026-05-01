@@ -51,6 +51,13 @@ public interface ISiemService
     Task<IReadOnlyList<SiemEventDto>> SearchAsync(SiemEventSearchRequest request, CancellationToken cancellationToken);
     Task<SiemSourceDto> RegisterSourceAsync(SiemSourceRegistrationRequest request, CancellationToken cancellationToken);
     Task<IReadOnlyList<SiemSourceDto>> ListSourcesAsync(CancellationToken cancellationToken);
+    Task<SiemSourceDto?> GetSourceAsync(Guid id, CancellationToken cancellationToken);
+    Task<SiemSourceDto?> UpdateSourceAsync(Guid id, SiemSourceUpdateRequest request, CancellationToken cancellationToken);
+    Task<SiemSourceDto?> UpdateSourceConfigAsync(Guid id, SiemSourceConfigRequest request, CancellationToken cancellationToken);
+    Task<SiemSourceDto?> AddOrUpdateSecretRefAsync(Guid id, SiemSourceSecretRefRequest request, CancellationToken cancellationToken);
+    Task<SiemSourceDto?> RemoveSecretRefAsync(Guid id, string secretPurpose, CancellationToken cancellationToken);
+    Task<SiemSourceDto?> UpdateSourceStateAsync(Guid id, SiemSourceStateRequest request, CancellationToken cancellationToken);
+    Task<SiemSourceDto?> AddHealthSnapshotAsync(Guid id, SiemSourceHealthSnapshotRequest request, CancellationToken cancellationToken);
     Task<IReadOnlyList<SiemIngestionJobDto>> ListIngestionJobsAsync(CancellationToken cancellationToken);
     Task<SiemIngestionJobDto?> GetIngestionJobAsync(Guid id, CancellationToken cancellationToken);
 }
@@ -157,6 +164,11 @@ public interface IFenrirDataStore
     Task<SiemLogSource?> GetSiemLogSourceAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<SiemLogSource?>(null);
     Task<SiemLogSource?> GetSiemLogSourceByNameAsync(string name, CancellationToken cancellationToken) => Task.FromResult<SiemLogSource?>(null);
     Task<IReadOnlyList<SiemLogSource>> ListSiemLogSourcesAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<SiemLogSource>>([]);
+    Task UpsertSiemSourceConfigAsync(SiemSourceConfig config, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task UpsertSiemSourceSecretRefAsync(SiemSourceSecretRef secretRef, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task RemoveSiemSourceSecretRefAsync(Guid sourceId, string secretPurpose, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task UpsertSiemSourceStateAsync(SiemSourceState state, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task AddSiemSourceHealthSnapshotAsync(SiemSourceHealthSnapshot snapshot, CancellationToken cancellationToken) => Task.CompletedTask;
     Task AddSiemIngestionJobAsync(SiemIngestionJob job, CancellationToken cancellationToken) => Task.CompletedTask;
     Task UpdateSiemIngestionJobAsync(SiemIngestionJob job, CancellationToken cancellationToken) => Task.CompletedTask;
     Task<SiemIngestionJob?> GetSiemIngestionJobAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<SiemIngestionJob?>(null);
