@@ -62,6 +62,17 @@ public interface ISiemService
     Task<SiemIngestionJobDto?> GetIngestionJobAsync(Guid id, CancellationToken cancellationToken);
 }
 
+public interface IAgentService
+{
+    Task<AgentEnrolmentTokenCreatedResponse> CreateEnrolmentTokenAsync(AgentEnrolmentTokenCreateRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<AgentEnrolmentTokenDto>> ListEnrolmentTokensAsync(CancellationToken cancellationToken);
+    Task<AgentEnrolmentTokenDto?> RevokeEnrolmentTokenAsync(Guid id, CancellationToken cancellationToken);
+    Task<AgentEnrolResponse> EnrolAsync(AgentEnrolRequest request, CancellationToken cancellationToken);
+    Task<AgentHeartbeatResponse?> HeartbeatAsync(string agentId, AgentHeartbeatRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<AgentEndpointDto>> ListAgentsAsync(CancellationToken cancellationToken);
+    Task<AgentEndpointDto?> GetAgentAsync(string agentId, CancellationToken cancellationToken);
+}
+
 public interface IFindingService
 {
     Task<IReadOnlyList<FindingDto>> ListAsync(CancellationToken cancellationToken);
@@ -191,6 +202,17 @@ public interface IFenrirDataStore
     Task UpdateSiemIngestionJobAsync(SiemIngestionJob job, CancellationToken cancellationToken) => Task.CompletedTask;
     Task<SiemIngestionJob?> GetSiemIngestionJobAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<SiemIngestionJob?>(null);
     Task<IReadOnlyList<SiemIngestionJob>> ListSiemIngestionJobsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<SiemIngestionJob>>([]);
+
+    Task AddAgentEnrolmentTokenAsync(AgentEnrolmentToken token, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task UpdateAgentEnrolmentTokenAsync(AgentEnrolmentToken token, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task<AgentEnrolmentToken?> GetAgentEnrolmentTokenByHashAsync(string tokenHash, CancellationToken cancellationToken) => Task.FromResult<AgentEnrolmentToken?>(null);
+    Task<AgentEnrolmentToken?> GetAgentEnrolmentTokenAsync(Guid id, CancellationToken cancellationToken) => Task.FromResult<AgentEnrolmentToken?>(null);
+    Task<IReadOnlyList<AgentEnrolmentToken>> ListAgentEnrolmentTokensAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<AgentEnrolmentToken>>([]);
+    Task AddAgentEndpointAsync(AgentEndpoint agent, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task UpdateAgentEndpointAsync(AgentEndpoint agent, CancellationToken cancellationToken) => Task.CompletedTask;
+    Task<AgentEndpoint?> GetAgentEndpointByAgentIdAsync(string agentId, CancellationToken cancellationToken) => Task.FromResult<AgentEndpoint?>(null);
+    Task<AgentEndpoint?> GetAgentEndpointByMachineGuidAsync(string machineGuid, CancellationToken cancellationToken) => Task.FromResult<AgentEndpoint?>(null);
+    Task<IReadOnlyList<AgentEndpoint>> ListAgentEndpointsAsync(CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<AgentEndpoint>>([]);
 
     Task AddJobAsync(JobRecord job, CancellationToken cancellationToken);
     Task<JobRecord?> GetJobAsync(Guid id, CancellationToken cancellationToken);
