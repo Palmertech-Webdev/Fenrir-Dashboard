@@ -21,6 +21,54 @@ public static class ContractMapping
             finding.RelatedEntityId,
             finding.RelatedEntityType);
 
+    public static AgentEnrolmentTokenCreatedResponse ToCreatedDto(this AgentEnrolmentToken token, string tokenValue) =>
+        new(
+            token.Id,
+            token.Name,
+            tokenValue,
+            BuildTokenPreview(tokenValue),
+            token.Description,
+            token.AllowedHostPattern,
+            token.ExpiresAtUtc,
+            token.MaxUses,
+            token.UseCount,
+            token.CreatedAtUtc,
+            token.RevokedAtUtc);
+
+    public static AgentEnrolmentTokenDto ToDto(this AgentEnrolmentToken token) =>
+        new(
+            token.Id,
+            token.Name,
+            BuildTokenPreview(token.TokenHash),
+            token.Description,
+            token.AllowedHostPattern,
+            token.ExpiresAtUtc,
+            token.MaxUses,
+            token.UseCount,
+            token.CreatedAtUtc,
+            token.RevokedAtUtc,
+            token.RevokedAtUtc is null
+                && (!token.ExpiresAtUtc.HasValue || token.ExpiresAtUtc.Value > DateTime.UtcNow)
+                && (!token.MaxUses.HasValue || token.UseCount < token.MaxUses.Value));
+
+    public static AgentEndpointDto ToDto(this AgentEndpoint agent) =>
+        new(
+            agent.Id,
+            agent.AgentId,
+            agent.Hostname,
+            agent.MachineGuid,
+            agent.OperatingSystem,
+            agent.AgentVersion,
+            agent.SourceId,
+            CalculateAgentStatus(agent),
+            agent.FirstSeenAtUtc,
+            agent.LastSeenAtUtc,
+            agent.LastHeartbeatAtUtc,
+            agent.LastTelemetryAtUtc,
+            agent.IpAddress,
+            agent.QueuedEventsCount,
+            agent.IsEnabled);
+
     public static IocRecordDto ToDto(this Indicator indicator) =>
         new(
             indicator.Id,
@@ -210,4 +258,35 @@ public static class ContractMapping
             job.CreatedAtUtc,
             job.StartedAtUtc,
             job.CompletedAtUtc);
+
+    private static string BuildTokenPreview(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "";
+        }
+
+        return value.Length <= 12 ? value : $"{value[..8]}...{value[^4..]}";
+    }
+
+    private static string CalculateAgentStatus(AgentEndpoint agent)
+    {
+        if (!agent.IsEnabled)
+        {
+            return "Disabled";
+        }
+
+        if (!agent.LastHeartbeatAtUtc.HasValue)
+        {
+            return "Unenrolled";
+        }
+
+        var age = DateTime.UtcNow - agent.LastHeartbeatAtUtc.Value;
+        if (age < TimeSpan.FromMinutes(2))
+        {
+            return "Healthy";
+        }
+
+        return age <= TimeSpan.FromMinutes(10) ? "Warning" : "Offline";
+    }
 }

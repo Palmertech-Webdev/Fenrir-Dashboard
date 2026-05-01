@@ -20,6 +20,9 @@ public sealed record SiemEventSearchRequest(
     string? Domain = null,
     string? FileHashSha256 = null,
     string? CloudAction = null,
+    Guid? SourceId = null,
+    string? SourceIp = null,
+    string? DestinationIp = null,
     DateTime? FromUtc = null,
     DateTime? ToUtc = null,
     int Take = 500);

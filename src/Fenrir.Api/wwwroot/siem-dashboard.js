@@ -1,6 +1,7 @@
 const siemState = {
   sources: [],
   ingestionJobs: [],
+  selectedEvent: null,
   autoRefreshHandle: null
 };
 
@@ -14,6 +15,29 @@ function bindSiemDashboard() {
   const refreshCollectorButton = document.getElementById("refreshSiemCollectorButton");
   if (refreshCollectorButton) {
     refreshCollectorButton.addEventListener("click", refreshSiemCollector);
+  }
+
+  const eventRows = document.getElementById("eventRows");
+  if (eventRows) {
+    eventRows.addEventListener("click", async (event) => {
+      const action = event.target?.dataset?.pivotAction;
+      const value = event.target?.dataset?.pivotValue;
+      if (action && value) {
+        await pivotSiemEvents(action, value);
+        return;
+      }
+
+      const row = event.target.closest("tr[data-event-id]");
+      if (!row) {
+        return;
+      }
+
+      const selected = state.events.find((item) => item.id === row.dataset.eventId);
+      if (selected) {
+        siemState.selectedEvent = selected;
+        renderSiemEventDetail(selected);
+      }
+    });
   }
 
   const agentForm = document.getElementById("siemAgentRegistrationForm");
@@ -31,7 +55,7 @@ function bindSiemDashboard() {
         vendor: form.get("vendor") || "Fenrir",
         product: form.get("product") || "Fenrir Agent",
         connectionType: "agent_push",
-        parser: form.get("parser") || "fenrir_agent_v1",
+        parser: form.get("parser") || "generic_json_v1",
         description: description || (hostname ? `Agent telemetry source for ${hostname}` : "Agent telemetry source"),
         isEnabled: true
       };
@@ -70,6 +94,11 @@ function bindSiemDashboard() {
         severity: emptyToNull(form.get("severity")),
         eventType: emptyToNull(form.get("eventType")),
         userName: emptyToNull(form.get("userName")),
+        sourceIp: emptyToNull(form.get("sourceIp")),
+        destinationIp: emptyToNull(form.get("destinationIp")),
+        domain: emptyToNull(form.get("domain")),
+        fileHashSha256: emptyToNull(form.get("hash")),
+        eventCategory: emptyToNull(form.get("category")),
         indicator: emptyToNull(form.get("indicator")),
         take: 500
       };
@@ -111,6 +140,22 @@ async function refreshSiemIngestionJobs() {
   } catch (error) {
     siemState.ingestionJobs = [];
     showToast(`SIEM ingestion jobs unavailable: ${error.message}`);
+  }
+}
+
+async function pivotSiemEvents(field, value) {
+  const query = new URLSearchParams();
+  query.set(field, value);
+  query.set("take", "500");
+
+  try {
+    state.events = await api(`/api/siem/events?${query.toString()}`);
+    renderEvents();
+    renderDashboard();
+    renderSiemCollector();
+    showToast(`Pivoted telemetry by ${field}: ${value}`);
+  } catch (error) {
+    showToast(`Pivot failed: ${error.message}`);
   }
 }
 
@@ -172,16 +217,123 @@ function startSiemAutoRefresh() {
 
 function renderEvents() {
   renderRows("eventRows", state.events, (event) => `
-    <tr>
+    <tr data-event-id="${escapeHtml(event.id)}">
       <td>${pill(event.severity)}</td>
-      <td>${escapeHtml(event.source || "")}</td>
-      <td>${escapeHtml(event.host || "")}</td>
-      <td>${escapeHtml(event.eventType || "")}</td>
-      <td>${escapeHtml(event.message || "")}</td>
+      <td>
+        ${escapeHtml(event.sourceName || event.source || "")}
+        <div class="muted-text">${escapeHtml(event.vendor || "")} ${escapeHtml(event.product || "")}</div>
+      </td>
+      <td>${pivotButton("host", event.host, event.host || "")}</td>
+      <td>
+        ${escapeHtml(event.eventType || "")}
+        <div class="muted-text">${pivotButton("category", event.eventCategory, event.eventCategory || "uncategorised")}</div>
+      </td>
+      <td>${renderSiemPivotSummary(event)}</td>
       <td>${formatDate(event.timestampUtc || event.ingestedAtUtc)}</td>
     </tr>
   `);
   renderSiemCollector();
+}
+
+function renderSiemPivotSummary(event) {
+  const pivots = [
+    ["sourceIp", event.sourceIp, "Src IP"],
+    ["destinationIp", event.destinationIp, "Dst IP"],
+    ["user", event.user, "User"],
+    ["domain", event.domain, "Domain"],
+    ["hash", event.fileHashSha256, "Hash"]
+  ].filter(([, value]) => value);
+
+  if (!pivots.length) {
+    return escapeHtml(event.message || "");
+  }
+
+  return `
+    <div>${escapeHtml(event.message || "")}</div>
+    <div class="pivot-list">
+      ${pivots.map(([field, value, label]) => pivotButton(field, value, `${label}: ${value}`)).join(" ")}
+    </div>
+  `;
+}
+
+function renderSiemEventDetail(event) {
+  const target = document.getElementById("siemEventDetail");
+  if (!target) {
+    return;
+  }
+
+  const parsedFields = {
+    id: event.id,
+    timestampUtc: event.timestampUtc,
+    sourceId: event.sourceId,
+    sourceName: event.sourceName,
+    vendor: event.vendor,
+    product: event.product,
+    eventType: event.eventType,
+    eventCategory: event.eventCategory,
+    severity: event.severity,
+    host: event.host,
+    user: event.user,
+    sourceIp: event.sourceIp,
+    destinationIp: event.destinationIp,
+    sourcePort: event.sourcePort,
+    destinationPort: event.destinationPort,
+    domain: event.domain,
+    url: event.url,
+    fileName: event.fileName,
+    filePath: event.filePath,
+    fileHashSha256: event.fileHashSha256,
+    processName: event.processName,
+    commandLine: event.commandLine,
+    parentProcessName: event.parentProcessName,
+    mailbox: event.mailbox,
+    cloudTenantId: event.cloudTenantId,
+    cloudResourceId: event.cloudResourceId,
+    action: event.action,
+    outcome: event.outcome
+  };
+
+  target.innerHTML = `
+    <div class="result-title">
+      ${pill(event.severity)}
+      <span>${escapeHtml(event.eventType || "Security event")}</span>
+    </div>
+    <p>${escapeHtml(event.message || "")}</p>
+    <div class="pivot-list">
+      ${pivotButton("host", event.host, "Search this host")}
+      ${pivotButton("user", event.user, "Search this user")}
+      ${pivotButton("sourceIp", event.sourceIp, "Search source IP")}
+      ${pivotButton("destinationIp", event.destinationIp, "Search destination IP")}
+      ${pivotButton("domain", event.domain, "Search this domain")}
+      ${pivotButton("hash", event.fileHashSha256, "Search this hash")}
+      <button class="ghost" type="button" disabled>Create case from event</button>
+      <button class="ghost" type="button" disabled>Add event to case</button>
+    </div>
+    <h3>Parsed fields</h3>
+    ${jsonBlock(parsedFields)}
+    <h3>Raw JSON</h3>
+    <pre class="json-output">${escapeHtml(formatRawJson(event.rawJson))}</pre>
+  `;
+}
+
+function pivotButton(field, value, label) {
+  if (!value) {
+    return "";
+  }
+
+  return `<button class="ghost pivot-button" type="button" data-pivot-action="${escapeHtml(field)}" data-pivot-value="${escapeHtml(value)}">${escapeHtml(label)}</button>`;
+}
+
+function formatRawJson(rawJson) {
+  if (!rawJson) {
+    return "{}";
+  }
+
+  try {
+    return JSON.stringify(JSON.parse(rawJson), null, 2);
+  } catch {
+    return rawJson;
+  }
 }
 
 function isHealthySource(source) {

@@ -9,6 +9,8 @@ public sealed class FenrirDbContext(DbContextOptions<FenrirDbContext> options) :
     public DbSet<User> Users => Set<User>();
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
     public DbSet<Asset> Assets => Set<Asset>();
+    public DbSet<AgentEnrolmentToken> AgentEnrolmentTokens => Set<AgentEnrolmentToken>();
+    public DbSet<AgentEndpoint> AgentEndpoints => Set<AgentEndpoint>();
     public DbSet<Indicator> Indicators => Set<Indicator>();
     public DbSet<EmailCheck> EmailChecks => Set<EmailCheck>();
     public DbSet<EmailHeaderCheck> EmailHeaderChecks => Set<EmailHeaderCheck>();
@@ -53,6 +55,35 @@ public sealed class FenrirDbContext(DbContextOptions<FenrirDbContext> options) :
             entity.HasIndex(asset => asset.Name);
             entity.HasIndex(asset => asset.IpAddress);
             entity.Property(asset => asset.AssetType).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<AgentEnrolmentToken>(entity =>
+        {
+            entity.ToTable("AgentEnrolmentTokens");
+            entity.HasIndex(token => token.TokenHash).IsUnique();
+            entity.HasIndex(token => token.ExpiresAtUtc);
+            entity.HasIndex(token => token.RevokedAtUtc);
+            entity.Property(token => token.TokenHash).HasMaxLength(128);
+            entity.Property(token => token.Name).HasMaxLength(160);
+            entity.Property(token => token.AllowedHostPattern).HasMaxLength(255);
+        });
+
+        modelBuilder.Entity<AgentEndpoint>(entity =>
+        {
+            entity.ToTable("AgentEndpoints");
+            entity.HasIndex(agent => agent.AgentId).IsUnique();
+            entity.HasIndex(agent => agent.MachineGuid).IsUnique();
+            entity.HasIndex(agent => agent.Hostname);
+            entity.HasIndex(agent => agent.Status);
+            entity.HasIndex(agent => agent.SourceId);
+            entity.HasIndex(agent => agent.LastHeartbeatAtUtc);
+            entity.Property(agent => agent.AgentId).HasMaxLength(120);
+            entity.Property(agent => agent.Hostname).HasMaxLength(255);
+            entity.Property(agent => agent.MachineGuid).HasMaxLength(160);
+            entity.Property(agent => agent.OperatingSystem).HasMaxLength(160);
+            entity.Property(agent => agent.AgentVersion).HasMaxLength(80);
+            entity.Property(agent => agent.Status).HasMaxLength(80);
+            entity.Property(agent => agent.IpAddress).HasMaxLength(64);
         });
 
         modelBuilder.Entity<Indicator>(entity =>

@@ -35,6 +35,39 @@ public class Asset
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
+public class AgentEnrolmentToken
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string TokenHash { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string? Description { get; set; }
+    public string? AllowedHostPattern { get; set; }
+    public DateTime? ExpiresAtUtc { get; set; }
+    public int? MaxUses { get; set; }
+    public int UseCount { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? RevokedAtUtc { get; set; }
+}
+
+public class AgentEndpoint
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string AgentId { get; set; } = "";
+    public string Hostname { get; set; } = "";
+    public string MachineGuid { get; set; } = "";
+    public string OperatingSystem { get; set; } = "";
+    public string AgentVersion { get; set; } = "";
+    public Guid? SourceId { get; set; }
+    public string Status { get; set; } = "Unenrolled";
+    public DateTime FirstSeenAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime LastSeenAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime? LastHeartbeatAtUtc { get; set; }
+    public DateTime? LastTelemetryAtUtc { get; set; }
+    public string? IpAddress { get; set; }
+    public int? QueuedEventsCount { get; set; }
+    public bool IsEnabled { get; set; } = true;
+}
+
 public class Indicator
 {
     public Guid Id { get; set; } = Guid.NewGuid();

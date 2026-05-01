@@ -23,9 +23,49 @@ public sealed class SiemController(ISiemService siemService) : ControllerBase
     }
 
     [HttpGet("events")]
-    public async Task<ActionResult<IReadOnlyList<SiemEventDto>>> List([FromQuery] string? source, [FromQuery] string? host, [FromQuery] string? severity, CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<SiemEventDto>>> List(
+        [FromQuery] string? source,
+        [FromQuery] string? host,
+        [FromQuery] string? severity,
+        [FromQuery] string? eventType,
+        [FromQuery(Name = "user")] string? userName,
+        [FromQuery] string? sourceIp,
+        [FromQuery] string? destinationIp,
+        [FromQuery] string? ipAddress,
+        [FromQuery] string? domain,
+        [FromQuery(Name = "hash")] string? fileHashSha256,
+        [FromQuery(Name = "category")] string? eventCategory,
+        [FromQuery] string? cloudAction,
+        [FromQuery] Guid? sourceId,
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        [FromQuery] int take,
+        CancellationToken cancellationToken)
     {
-        var response = await siemService.ListAsync(source, host, severity, cancellationToken);
+        var effectiveIpAddress = string.IsNullOrWhiteSpace(ipAddress)
+            ? sourceIp ?? destinationIp
+            : ipAddress;
+
+        var request = new SiemEventSearchRequest(
+            Source: source,
+            Host: host,
+            Severity: severity,
+            EventType: eventType,
+            UserName: userName,
+            IpAddress: effectiveIpAddress,
+            Indicator: null,
+            EventCategory: eventCategory,
+            Domain: domain,
+            FileHashSha256: fileHashSha256,
+            CloudAction: cloudAction,
+            SourceId: sourceId,
+            SourceIp: sourceIp,
+            DestinationIp: destinationIp,
+            FromUtc: fromUtc,
+            ToUtc: toUtc,
+            Take: take <= 0 ? 500 : take);
+
+        var response = await siemService.SearchAsync(request, cancellationToken);
         return Ok(response);
     }
 
