@@ -23,7 +23,7 @@
         <button class="nav-item" data-view="dns">DNS Monitoring</button>
         <button class="nav-item" data-view="darkweb">Dark Web</button>
         <button class="nav-item" data-view="network">Network Scans</button>
-        <button class="nav-item" data-view="siem">SIEM Events</button>
+        <button class="nav-item" data-view="siem">SIEM Collector</button>
         <button class="nav-item" data-view="findings">Findings</button>
         <button class="nav-item" data-view="jobs">Jobs</button>
       </nav>
@@ -297,62 +297,235 @@
       </section>
 
       <section class="view" id="view-siem">
+        <div class="siem-hero panel">
+          <div>
+            <p class="eyebrow">SIEM Collector</p>
+            <h2>Agent telemetry, source health and investigation search</h2>
+            <p class="muted-text">Register Fenrir agents or external log sources, ingest telemetry automatically, monitor ingestion jobs and search normalised security events from one workspace.</p>
+          </div>
+          <div class="siem-hero-actions">
+            <button class="secondary" id="refreshEventsButton" type="button">Refresh Telemetry</button>
+            <button class="ghost" id="refreshSiemCollectorButton" type="button">Refresh Collector</button>
+          </div>
+        </div>
+
+        <div class="metric-grid siem-metrics">
+          <article class="metric">
+            <span>Registered Agents / Sources</span>
+            <strong id="metricSiemSources">0</strong>
+          </article>
+          <article class="metric">
+            <span>Healthy Sources</span>
+            <strong id="metricSiemHealthy">0</strong>
+          </article>
+          <article class="metric">
+            <span>Ingestion Jobs</span>
+            <strong id="metricSiemJobs">0</strong>
+          </article>
+          <article class="metric">
+            <span>Telemetry Events</span>
+            <strong id="metricSiemTelemetry">0</strong>
+          </article>
+        </div>
+
         <div class="two-column">
           <section class="panel">
-            <h2>Ingest Event</h2>
-            <form id="siemEventForm" class="tool-form">
+            <div class="panel-heading">
+              <h2>Agent Registration</h2>
+              <span class="pill Informational">Agent push source</span>
+            </div>
+            <form id="siemAgentRegistrationForm" class="tool-form">
               <div class="form-grid">
-                <label>Source
-                  <input name="source" type="text" value="FenrirAgent" required>
+                <label>Agent / source name
+                  <input name="name" type="text" placeholder="FenrirAgent-LAPTOP-001" required>
                 </label>
-                <label>Host
-                  <input name="host" type="text" placeholder="LAPTOP-001" required>
+                <label>Hostname
+                  <input name="hostname" type="text" placeholder="LAPTOP-001">
                 </label>
               </div>
               <div class="form-grid">
-                <label>Event type
-                  <input name="eventType" type="text" value="ProcessCreated" required>
+                <label>Vendor
+                  <input name="vendor" type="text" value="Fenrir">
                 </label>
+                <label>Product
+                  <input name="product" type="text" value="Fenrir Agent">
+                </label>
+              </div>
+              <div class="form-grid">
+                <label>Source type
+                  <select name="sourceType">
+                    <option value="agent">Agent</option>
+                    <option value="windows_agent">Windows Agent</option>
+                    <option value="siem_export">SIEM Export</option>
+                    <option value="syslog">Syslog</option>
+                    <option value="api_pull">API Pull</option>
+                    <option value="manual_upload">Manual Upload</option>
+                  </select>
+                </label>
+                <label>Parser profile
+                  <select name="parser">
+                    <option value="fenrir_agent_v1">Fenrir Agent v1</option>
+                    <option value="windows_security_v1">Windows Security</option>
+                    <option value="sysmon_v1">Sysmon</option>
+                    <option value="m365_audit_v1">Microsoft 365 Audit</option>
+                    <option value="generic_json_v1">Generic JSON</option>
+                  </select>
+                </label>
+              </div>
+              <label>Description
+                <input name="description" type="text" placeholder="Endpoint telemetry collector for laptop estate">
+              </label>
+              <button type="submit">Register Agent Source</button>
+            </form>
+            <div class="result-box" id="siemAgentRegistrationResult"></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>Registered Sources</h2>
+              <span class="muted-text">Auto-refreshed</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Status</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Parser</th>
+                    <th>Last Ingest</th>
+                  </tr>
+                </thead>
+                <tbody id="siemSourceRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <div class="two-column">
+          <section class="panel">
+            <div class="panel-heading">
+              <h2>Telemetry Search</h2>
+              <span class="pill Informational">Live query</span>
+            </div>
+            <form id="siemSearchForm" class="tool-form">
+              <div class="form-grid">
+                <label>Source
+                  <input name="source" type="text" placeholder="FenrirAgent">
+                </label>
+                <label>Host
+                  <input name="host" type="text" placeholder="LAPTOP-001">
+                </label>
+              </div>
+              <div class="form-grid">
                 <label>Severity
                   <select name="severity">
+                    <option value="">Any</option>
+                    <option>Informational</option>
                     <option>Low</option>
                     <option>Medium</option>
                     <option>High</option>
                     <option>Critical</option>
                   </select>
                 </label>
+                <label>Event type
+                  <input name="eventType" type="text" placeholder="ProcessCreated">
+                </label>
               </div>
-              <label>Message
-                <textarea name="message" rows="4" placeholder="PowerShell process started" required></textarea>
-              </label>
-              <label>Raw JSON
-                <textarea name="raw" rows="5" placeholder="{ }"></textarea>
-              </label>
-              <button type="submit">Ingest Event</button>
+              <div class="form-grid">
+                <label>User / identity
+                  <input name="userName" type="text" placeholder="admin@example.com">
+                </label>
+                <label>IP / IOC
+                  <input name="indicator" type="text" placeholder="IP, domain, URL or hash">
+                </label>
+              </div>
+              <button type="submit">Search Telemetry</button>
             </form>
-            <div class="result-box" id="siemIngestResult"></div>
           </section>
 
           <section class="panel">
             <div class="panel-heading">
-              <h2>Recent Events</h2>
-              <button class="secondary" id="refreshEventsButton" type="button">Refresh</button>
+              <h2>Ingestion Jobs</h2>
+              <span class="muted-text">Collector pipeline status</span>
             </div>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Severity</th>
-                    <th>Host</th>
-                    <th>Type</th>
-                    <th>Message</th>
+                    <th>Status</th>
+                    <th>Source</th>
+                    <th>Parser</th>
+                    <th>Parsed</th>
+                    <th>Failed</th>
                   </tr>
                 </thead>
-                <tbody id="eventRows"></tbody>
+                <tbody id="siemIngestionJobRows"></tbody>
               </table>
             </div>
           </section>
         </div>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Live Agent Telemetry</h2>
+            <span class="muted-text" id="siemAutoRefreshStatus">Auto-refresh enabled</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Severity</th>
+                  <th>Source</th>
+                  <th>Host</th>
+                  <th>Type</th>
+                  <th>Message</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+              <tbody id="eventRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <h2>Manual / Test Telemetry Injection</h2>
+            <span class="muted-text">Useful until live agents are pushing events</span>
+          </div>
+          <form id="siemEventForm" class="tool-form">
+            <div class="form-grid">
+              <label>Source
+                <input name="source" type="text" value="FenrirAgent" required>
+              </label>
+              <label>Host
+                <input name="host" type="text" placeholder="LAPTOP-001" required>
+              </label>
+            </div>
+            <div class="form-grid">
+              <label>Event type
+                <input name="eventType" type="text" value="ProcessCreated" required>
+              </label>
+              <label>Severity
+                <select name="severity">
+                  <option>Low</option>
+                  <option>Informational</option>
+                  <option>Medium</option>
+                  <option>High</option>
+                  <option>Critical</option>
+                </select>
+              </label>
+            </div>
+            <label>Message
+              <textarea name="message" rows="3" placeholder="PowerShell process started" required></textarea>
+            </label>
+            <label>Raw JSON
+              <textarea name="raw" rows="5" placeholder="{ }"></textarea>
+            </label>
+            <button type="submit">Ingest Test Event</button>
+          </form>
+          <div class="result-box" id="siemIngestResult"></div>
+        </section>
       </section>
 
       <section class="view" id="view-findings">
@@ -406,5 +579,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="/app.js" defer></script>
+  <script src="/siem-dashboard.js" defer></script>
 </body>
 </html>
