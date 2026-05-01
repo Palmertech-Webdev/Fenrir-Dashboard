@@ -93,6 +93,16 @@ public interface IAgentService
     Task<AgentEndpointDto?> GetAgentAsync(string agentId, CancellationToken cancellationToken);
 }
 
+public interface ICorrelationService
+{
+    Task<IReadOnlyList<CorrelationRuleDto>> ListRulesAsync(CancellationToken cancellationToken);
+    Task<CorrelationRuleDto> CreateRuleAsync(CorrelationRuleCreateRequest request, CancellationToken cancellationToken);
+    Task<CorrelationRuleDto?> UpdateRuleAsync(Guid id, CorrelationRuleUpdateRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<CorrelationAlertDto>> ListAlertsAsync(CancellationToken cancellationToken);
+    Task<CorrelationRunResponse> RunAsync(CorrelationRunRequest request, CancellationToken cancellationToken);
+    Task<EntityGraphResponse> BuildEntityGraphAsync(Guid? alertId, int lookbackMinutes, CancellationToken cancellationToken);
+}
+
 public interface IFindingService
 {
     Task<IReadOnlyList<FindingDto>> ListAsync(CancellationToken cancellationToken);
