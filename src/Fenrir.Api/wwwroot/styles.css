@@ -216,6 +216,43 @@ button.ghost:hover {
   line-height: 1;
 }
 
+.siem-metrics .metric {
+  border-top: 3px solid rgba(15, 118, 110, 0.55);
+}
+
+.siem-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 100%);
+}
+
+.siem-hero h2 {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+
+.siem-hero p {
+  max-width: 920px;
+}
+
+.siem-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .split-layout,
 .two-column {
   display: grid;
@@ -386,7 +423,9 @@ td {
 
 .pill.Critical,
 .pill.High,
-.pill.Malicious {
+.pill.Malicious,
+.pill.failed,
+.pill.Failed {
   background: #fee4e2;
   color: var(--red);
 }
@@ -394,21 +433,27 @@ td {
 .pill.Medium,
 .pill.Suspicious,
 .pill.Running,
-.pill.Queued {
+.pill.Queued,
+.pill.Warning,
+.pill.processing,
+.pill.partially_parsed {
   background: #fef3c7;
   color: var(--amber);
 }
 
 .pill.Low,
 .pill.Completed,
-.pill.Open {
+.pill.Open,
+.pill.Healthy,
+.pill.completed {
   background: #dcfce7;
   color: var(--green);
 }
 
 .pill.Informational,
 .pill.Benign,
-.pill.Allowlisted {
+.pill.Allowlisted,
+.pill.Disabled {
   background: #dbeafe;
   color: var(--blue);
 }
@@ -448,6 +493,15 @@ td {
   .split-layout,
   .two-column {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .siem-hero {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .siem-hero-actions {
+    justify-content: flex-start;
   }
 }
 
