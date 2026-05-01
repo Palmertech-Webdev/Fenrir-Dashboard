@@ -177,7 +177,7 @@ public sealed class EfFenrirDataStore(FenrirDbContext dbContext) : IFenrirDataSt
         var query = dbContext.SiemEvents.AsQueryable();
         if (!string.IsNullOrWhiteSpace(source))
         {
-            query = query.Where(securityEvent => securityEvent.Source == source);
+            query = query.Where(securityEvent => securityEvent.Source == source || securityEvent.SourceName == source);
         }
 
         if (!string.IsNullOrWhiteSpace(host))
@@ -196,13 +196,28 @@ public sealed class EfFenrirDataStore(FenrirDbContext dbContext) : IFenrirDataSt
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<SecurityEvent>> SearchSecurityEventsAsync(string? source, string? host, string? severity, string? eventType, string? userName, string? ipAddress, string? indicator, DateTime? fromUtc, DateTime? toUtc, int take, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<SecurityEvent>> SearchSecurityEventsAsync(
+        string? source,
+        string? host,
+        string? severity,
+        string? eventType,
+        string? userName,
+        string? ipAddress,
+        string? indicator,
+        string? eventCategory,
+        string? domain,
+        string? fileHashSha256,
+        string? cloudAction,
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        int take,
+        CancellationToken cancellationToken)
     {
         var query = dbContext.SiemEvents.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(source))
         {
-            query = query.Where(securityEvent => securityEvent.Source == source);
+            query = query.Where(securityEvent => securityEvent.Source == source || securityEvent.SourceName == source);
         }
 
         if (!string.IsNullOrWhiteSpace(host))
@@ -220,6 +235,11 @@ public sealed class EfFenrirDataStore(FenrirDbContext dbContext) : IFenrirDataSt
             query = query.Where(securityEvent => securityEvent.EventType == eventType);
         }
 
+        if (!string.IsNullOrWhiteSpace(eventCategory))
+        {
+            query = query.Where(securityEvent => securityEvent.EventCategory == eventCategory);
+        }
+
         if (fromUtc.HasValue)
         {
             query = query.Where(securityEvent => securityEvent.TimestampUtc >= fromUtc.Value.ToUniversalTime());
@@ -232,17 +252,39 @@ public sealed class EfFenrirDataStore(FenrirDbContext dbContext) : IFenrirDataSt
 
         if (!string.IsNullOrWhiteSpace(userName))
         {
-            query = query.Where(securityEvent => securityEvent.Message.Contains(userName) || securityEvent.RawJson.Contains(userName));
+            query = query.Where(securityEvent => securityEvent.User == userName || securityEvent.Message.Contains(userName) || securityEvent.RawJson.Contains(userName));
         }
 
         if (!string.IsNullOrWhiteSpace(ipAddress))
         {
-            query = query.Where(securityEvent => securityEvent.Message.Contains(ipAddress) || securityEvent.RawJson.Contains(ipAddress));
+            query = query.Where(securityEvent => securityEvent.SourceIp == ipAddress || securityEvent.DestinationIp == ipAddress || securityEvent.Message.Contains(ipAddress) || securityEvent.RawJson.Contains(ipAddress));
+        }
+
+        if (!string.IsNullOrWhiteSpace(domain))
+        {
+            query = query.Where(securityEvent => securityEvent.Domain == domain || securityEvent.Url == domain || securityEvent.Message.Contains(domain) || securityEvent.RawJson.Contains(domain));
+        }
+
+        if (!string.IsNullOrWhiteSpace(fileHashSha256))
+        {
+            query = query.Where(securityEvent => securityEvent.FileHashSha256 == fileHashSha256 || securityEvent.Message.Contains(fileHashSha256) || securityEvent.RawJson.Contains(fileHashSha256));
+        }
+
+        if (!string.IsNullOrWhiteSpace(cloudAction))
+        {
+            query = query.Where(securityEvent => securityEvent.Action == cloudAction || securityEvent.EventType == cloudAction || securityEvent.Message.Contains(cloudAction) || securityEvent.RawJson.Contains(cloudAction));
         }
 
         if (!string.IsNullOrWhiteSpace(indicator))
         {
-            query = query.Where(securityEvent => securityEvent.Message.Contains(indicator) || securityEvent.RawJson.Contains(indicator));
+            query = query.Where(securityEvent =>
+                securityEvent.SourceIp == indicator ||
+                securityEvent.DestinationIp == indicator ||
+                securityEvent.Domain == indicator ||
+                securityEvent.Url == indicator ||
+                securityEvent.FileHashSha256 == indicator ||
+                securityEvent.Message.Contains(indicator) ||
+                securityEvent.RawJson.Contains(indicator));
         }
 
         return await query
