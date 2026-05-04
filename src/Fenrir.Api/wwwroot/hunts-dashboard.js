@@ -151,94 +151,102 @@ function bindHuntDashboard() {
 
   document.getElementById("huntPackForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      name: form.get("name"),
-      description: form.get("description"),
-      category: form.get("category") || "general",
-      severity: form.get("severity") || "Medium",
-      mitreTactic: form.get("mitreTactic") || "Discovery",
-      mitreTechnique: emptyToNull(form.get("mitreTechnique")),
-      isEnabled: true
-    };
-    try {
-      const created = await api("/api/hunts/packs", { method: "POST", body: payload });
-      huntState.selectedPackId = created.id;
-      event.currentTarget.reset();
-      await refreshHuntPacks();
-      showToast("Hunt pack created");
-    } catch (error) {
-      showToast(`Hunt pack creation failed: ${error.message}`);
-    }
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const payload = {
+        name: form.get("name"),
+        description: form.get("description"),
+        category: form.get("category") || "general",
+        severity: form.get("severity") || "Medium",
+        mitreTactic: form.get("mitreTactic") || "Discovery",
+        mitreTechnique: emptyToNull(form.get("mitreTechnique")),
+        isEnabled: true
+      };
+      try {
+        const created = await api("/api/hunts/packs", { method: "POST", body: payload });
+        huntState.selectedPackId = created.id;
+        event.currentTarget.reset();
+        await refreshHuntPacks();
+        showToast("Hunt pack created");
+      } catch (error) {
+        showToast(`Hunt pack creation failed: ${error.message}`);
+      }
+    }, "Creating...");
   });
 
   document.getElementById("huntQueryForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const packId = form.get("huntPackId");
-    if (!packId) return;
-    const payload = {
-      name: form.get("name"),
-      description: form.get("description"),
-      queryType: "siem_structured",
-      queryDefinition: form.get("queryDefinition") || "",
-      targetField: form.get("targetField") || "Message",
-      expectedEvidence: emptyToNull(form.get("expectedEvidence")),
-      sortOrder: Number(form.get("sortOrder") || 0)
-    };
-    try {
-      await api(`/api/hunts/packs/${packId}/queries`, { method: "POST", body: payload });
-      event.currentTarget.reset();
-      await refreshHuntPacks();
-      showToast("Hunt query added");
-    } catch (error) {
-      showToast(`Query creation failed: ${error.message}`);
-    }
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const packId = form.get("huntPackId");
+      if (!packId) return;
+      const payload = {
+        name: form.get("name"),
+        description: form.get("description"),
+        queryType: "siem_structured",
+        queryDefinition: form.get("queryDefinition") || "",
+        targetField: form.get("targetField") || "Message",
+        expectedEvidence: emptyToNull(form.get("expectedEvidence")),
+        sortOrder: Number(form.get("sortOrder") || 0)
+      };
+      try {
+        await api(`/api/hunts/packs/${packId}/queries`, { method: "POST", body: payload });
+        event.currentTarget.reset();
+        await refreshHuntPacks();
+        showToast("Hunt query added");
+      } catch (error) {
+        showToast(`Query creation failed: ${error.message}`);
+      }
+    }, "Saving...");
   });
 
   document.getElementById("huntRunForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      huntPackId: form.get("huntPackId"),
-      lookbackHours: Number(form.get("lookbackHours") || 24),
-      startedBy: "analyst",
-      scope: emptyToNull(form.get("scope")),
-      caseId: emptyToNull(form.get("caseId"))
-    };
-    try {
-      const run = await api("/api/hunts/runs", { method: "POST", body: payload });
-      huntState.selectedRunId = run.id;
-      document.getElementById("huntRunResult").innerHTML = `<div class="result-title">${pill(run.status)} <span>${run.matches} matches</span></div><p>${escapeHtml(run.huntPackName)} completed across ${run.lookbackHours} hours.</p>`;
-      await refreshHuntRuns();
-      renderHuntRunDetail(run);
-      showToast("Hunt run completed");
-    } catch (error) {
-      document.getElementById("huntRunResult").innerHTML = renderError(error);
-      showToast(`Hunt run failed: ${error.message}`);
-    }
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const payload = {
+        huntPackId: form.get("huntPackId"),
+        lookbackHours: Number(form.get("lookbackHours") || 24),
+        startedBy: "analyst",
+        scope: emptyToNull(form.get("scope")),
+        caseId: emptyToNull(form.get("caseId"))
+      };
+      try {
+        const run = await api("/api/hunts/runs", { method: "POST", body: payload });
+        huntState.selectedRunId = run.id;
+        document.getElementById("huntRunResult").innerHTML = `<div class="result-title">${pill(run.status)} <span>${run.matches} matches</span></div><p>${escapeHtml(run.huntPackName)} completed across ${run.lookbackHours} hours.</p>`;
+        await refreshHuntRuns();
+        renderHuntRunDetail(run);
+        showToast("Hunt run completed");
+      } catch (error) {
+        document.getElementById("huntRunResult").innerHTML = renderError(error);
+        showToast(`Hunt run failed: ${error.message}`);
+      }
+    }, "Running...");
   });
 
   document.getElementById("dfirCollectionForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const artefacts = String(form.get("artefacts") || "").split(",").map(item => item.trim()).filter(Boolean);
-    const payload = {
-      hostname: form.get("hostname"),
-      collectionType: form.get("collectionType") || "triage",
-      caseId: emptyToNull(form.get("caseId")),
-      requestedBy: "analyst",
-      artefacts: artefacts.length ? artefacts : null,
-      notes: emptyToNull(form.get("notes"))
-    };
-    try {
-      await api("/api/hunts/dfir-collections", { method: "POST", body: payload });
-      event.currentTarget.reset();
-      await refreshDfirCollections();
-      showToast("DFIR collection queued");
-    } catch (error) {
-      showToast(`DFIR request failed: ${error.message}`);
-    }
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const artefacts = String(form.get("artefacts") || "").split(",").map(item => item.trim()).filter(Boolean);
+      const payload = {
+        hostname: form.get("hostname"),
+        collectionType: form.get("collectionType") || "triage",
+        caseId: emptyToNull(form.get("caseId")),
+        requestedBy: "analyst",
+        artefacts: artefacts.length ? artefacts : null,
+        notes: emptyToNull(form.get("notes"))
+      };
+      try {
+        await api("/api/hunts/dfir-collections", { method: "POST", body: payload });
+        event.currentTarget.reset();
+        await refreshDfirCollections();
+        showToast("DFIR collection queued");
+      } catch (error) {
+        showToast(`DFIR request failed: ${error.message}`);
+      }
+    }, "Queueing...");
   });
 
   document.getElementById("huntPackRows")?.addEventListener("click", event => {
@@ -248,9 +256,27 @@ function bindHuntDashboard() {
     updateHuntSelects();
   });
 
+  document.getElementById("huntPackRows")?.addEventListener("keydown", event => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const row = event.target.closest("tr[data-pack-id]");
+    if (!row) return;
+    event.preventDefault();
+    huntState.selectedPackId = row.dataset.packId;
+    updateHuntSelects();
+  });
+
   document.getElementById("huntRunRows")?.addEventListener("click", event => {
     const row = event.target.closest("tr[data-run-id]");
     if (!row) return;
+    const run = huntState.runs.find(item => item.id === row.dataset.runId);
+    if (run) renderHuntRunDetail(run);
+  });
+
+  document.getElementById("huntRunRows")?.addEventListener("keydown", event => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const row = event.target.closest("tr[data-run-id]");
+    if (!row) return;
+    event.preventDefault();
     const run = huntState.runs.find(item => item.id === row.dataset.runId);
     if (run) renderHuntRunDetail(run);
   });
@@ -297,7 +323,7 @@ async function refreshDfirCollections() {
 
 function renderHuntPacks() {
   renderRows("huntPackRows", huntState.packs, pack => `
-    <tr data-pack-id="${escapeHtml(pack.id)}">
+    <tr data-pack-id="${escapeHtml(pack.id)}" tabindex="0" role="button" aria-label="Select hunt pack ${escapeHtml(pack.name)}">
       <td>${pill(pack.severity)}</td>
       <td><strong>${escapeHtml(pack.name)}</strong><div class="muted-text">${escapeHtml(pack.description)}</div></td>
       <td>${pill(pack.category)}</td>
@@ -309,7 +335,7 @@ function renderHuntPacks() {
 
 function renderHuntRuns() {
   renderRows("huntRunRows", huntState.runs, run => `
-    <tr data-run-id="${escapeHtml(run.id)}">
+    <tr data-run-id="${escapeHtml(run.id)}" tabindex="0" role="button" aria-label="Open hunt run ${escapeHtml(run.huntPackName || "")}">
       <td>${pill(run.status)}</td>
       <td><strong>${escapeHtml(run.huntPackName)}</strong><div class="muted-text">${escapeHtml(run.scope || "")}</div></td>
       <td>${Number(run.matches || 0)}</td>
@@ -371,14 +397,4 @@ function showHuntView() {
   document.querySelectorAll(".nav-item").forEach(item => item.classList.toggle("active", item.dataset.view === "hunts"));
   document.querySelectorAll(".view").forEach(view => view.classList.toggle("active", view.id === "view-hunts"));
   refreshHuntDashboard();
-}
-
-function setMetric(id, value) {
-  const element = document.getElementById(id);
-  if (element) element.textContent = value;
-}
-
-function emptyToNull(value) {
-  const text = String(value || "").trim();
-  return text.length ? text : null;
 }

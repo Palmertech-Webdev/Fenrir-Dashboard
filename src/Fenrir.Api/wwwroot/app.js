@@ -12,6 +12,7 @@ const toast = document.getElementById("toast");
 document.addEventListener("DOMContentLoaded", () => {
   bindNavigation();
   bindForms();
+  initDensityToggle();
   refreshAll();
 });
 
@@ -39,141 +40,161 @@ function bindForms() {
 
   document.getElementById("emailVerifyForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      email: form.get("email"),
-      dkimSelector: form.get("dkimSelector") || null
-    };
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const payload = {
+        email: form.get("email"),
+        dkimSelector: form.get("dkimSelector") || null
+      };
 
-    await runTool("/api/email/verify", payload, "emailVerifyResult", (data) => renderEmailResult(data));
+      await runTool("/api/email/verify", payload, "emailVerifyResult", (data) => renderEmailResult(data));
+    }, "Verifying...");
   });
 
   document.getElementById("headerCheckForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await runTool("/api/email/header-check", { rawHeaders: form.get("rawHeaders") }, "headerCheckResult", renderHeaderResult);
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      await runTool("/api/email/header-check", { rawHeaders: form.get("rawHeaders") }, "headerCheckResult", renderHeaderResult);
+    }, "Checking...");
   });
 
   document.getElementById("iocCheckForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const indicators = splitLines(form.get("indicators"));
-    const payload = indicators.length === 1 ? { indicator: indicators[0] } : { indicators };
-    await runTool("/api/iocs/check", payload, "iocCheckResult", renderIocCheckResult);
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const indicators = splitLines(form.get("indicators"));
+      const payload = indicators.length === 1 ? { indicator: indicators[0] } : { indicators };
+      await runTool("/api/iocs/check", payload, "iocCheckResult", renderIocCheckResult);
+    }, "Checking...");
   });
 
   document.getElementById("iocImportForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const tags = String(form.get("tags") || "")
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean);
-    const payload = {
-      records: [
-        {
-          indicator: form.get("indicator"),
-          verdict: form.get("verdict"),
-          severity: form.get("severity"),
-          confidence: Number(form.get("confidence") || 0),
-          source: form.get("source") || "Manual import",
-          tags
-        }
-      ]
-    };
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const tags = String(form.get("tags") || "")
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+      const payload = {
+        records: [
+          {
+            indicator: form.get("indicator"),
+            verdict: form.get("verdict"),
+            severity: form.get("severity"),
+            confidence: Number(form.get("confidence") || 0),
+            source: form.get("source") || "Manual import",
+            tags
+          }
+        ]
+      };
 
-    await api("/api/iocs/import", { method: "POST", body: payload });
-    showToast("IOC imported");
-    event.currentTarget.reset();
-    await refreshIocs();
+      await api("/api/iocs/import", { method: "POST", body: payload });
+      showToast("IOC imported");
+      event.currentTarget.reset();
+      await refreshIocs();
+    }, "Importing...");
   });
 
   document.getElementById("dnsCheckForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await runTool("/api/dns/check-domain", { domain: form.get("domain") }, "dnsCheckResult", renderDnsResult);
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      await runTool("/api/dns/check-domain", { domain: form.get("domain") }, "dnsCheckResult", renderDnsResult);
+    }, "Checking...");
   });
 
   document.getElementById("monitoredDomainForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await api("/api/dns/monitored-domains", {
-      method: "POST",
-      body: {
-        domain: form.get("domain"),
-        owner: form.get("owner") || null
-      }
-    });
-    showToast("Monitored domain added");
-    event.currentTarget.reset();
-    await refreshMonitoredDomains();
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      await api("/api/dns/monitored-domains", {
+        method: "POST",
+        body: {
+          domain: form.get("domain"),
+          owner: form.get("owner") || null
+        }
+      });
+      showToast("Monitored domain added");
+      event.currentTarget.reset();
+      await refreshMonitoredDomains();
+    }, "Saving...");
   });
 
   document.getElementById("darkWebForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await runTool(
-      "/api/darkweb/check",
-      { query: form.get("query"), queryType: form.get("queryType") },
-      "darkWebResult",
-      renderDarkWebResult
-    );
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      await runTool(
+        "/api/darkweb/check",
+        { query: form.get("query"), queryType: form.get("queryType") },
+        "darkWebResult",
+        renderDarkWebResult
+      );
+    }, "Checking...");
   });
 
   document.getElementById("networkScanForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const ports = String(form.get("ports") || "")
-      .split(",")
-      .map((port) => Number(port.trim()))
-      .filter((port) => Number.isInteger(port));
-    await runTool(
-      "/api/network/scans",
-      {
-        target: form.get("target"),
-        scanType: form.get("scanType"),
-        ports: ports.length ? ports : null
-      },
-      "networkScanResult",
-      renderNetworkCreateResult
-    );
-    await refreshJobs();
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const ports = String(form.get("ports") || "")
+        .split(",")
+        .map((port) => Number(port.trim()))
+        .filter((port) => Number.isInteger(port));
+      await runTool(
+        "/api/network/scans",
+        {
+          target: form.get("target"),
+          scanType: form.get("scanType"),
+          ports: ports.length ? ports : null
+        },
+        "networkScanResult",
+        renderNetworkCreateResult
+      );
+      await refreshJobs();
+    }, "Queuing...");
   });
 
   document.getElementById("networkLookupForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await runReadTool(`/api/network/scans/${encodeURIComponent(form.get("scanId"))}`, "networkLookupResult", renderNetworkScan);
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      await runReadTool(`/api/network/scans/${encodeURIComponent(form.get("scanId"))}`, "networkLookupResult", renderNetworkScan);
+    }, "Loading...");
   });
 
   document.getElementById("siemEventForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const rawText = String(form.get("raw") || "").trim();
-    let raw = {};
-    try {
-      if (rawText.length > 0) {
-        raw = JSON.parse(rawText);
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const rawText = String(form.get("raw") || "").trim();
+      let raw = {};
+      try {
+        if (rawText.length > 0) {
+          raw = JSON.parse(rawText);
+        }
+      } catch (error) {
+        document.getElementById("siemIngestResult").innerHTML = renderError(new Error("Raw JSON is not valid."));
+        return;
       }
-    } catch (error) {
-      document.getElementById("siemIngestResult").innerHTML = renderError(new Error("Raw JSON is not valid."));
-      return;
-    }
 
-    await runTool(
-      "/api/siem/events",
-      {
-        source: form.get("source"),
-        host: form.get("host"),
-        eventType: form.get("eventType"),
-        severity: form.get("severity"),
-        message: form.get("message"),
-        raw
-      },
-      "siemIngestResult",
-      renderSiemIngestResult
-    );
-    await refreshEvents();
+      await runTool(
+        "/api/siem/events",
+        {
+          source: form.get("source"),
+          host: form.get("host"),
+          eventType: form.get("eventType"),
+          severity: form.get("severity"),
+          message: form.get("message"),
+          raw
+        },
+        "siemIngestResult",
+        renderSiemIngestResult
+      );
+      await refreshEvents();
+    }, "Ingesting...");
   });
 }
 
@@ -194,8 +215,10 @@ async function refreshHealth() {
   try {
     const response = await fetch("/health");
     statusText.textContent = response.ok ? "API online" : "API health check returned a warning";
+    statusText.dataset.status = response.ok ? "online" : "warning";
   } catch {
     statusText.textContent = "API offline";
+    statusText.dataset.status = "offline";
   }
 }
 
@@ -377,17 +400,6 @@ function renderIocs() {
       <td>${pill(ioc.verdict)}</td>
       <td>${ioc.confidence}</td>
       <td>${escapeHtml(ioc.source || "")}</td>
-    </tr>
-  `);
-}
-
-function renderEvents() {
-  renderRows("eventRows", state.events, (event) => `
-    <tr>
-      <td>${pill(event.severity)}</td>
-      <td>${escapeHtml(event.host)}</td>
-      <td>${escapeHtml(event.eventType)}</td>
-      <td>${escapeHtml(event.message)}</td>
     </tr>
   `);
 }
@@ -582,6 +594,18 @@ function jsonBlock(data) {
   return `<pre class="json-output">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`;
 }
 
+function setMetric(id, value) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.textContent = value;
+  }
+}
+
+function emptyToNull(value) {
+  const text = String(value || "").trim();
+  return text.length ? text : null;
+}
+
 function splitLines(value) {
   return String(value || "")
     .split(/\r?\n/)
@@ -609,6 +633,50 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function setFormBusy(form, isBusy, label) {
+  if (!form) return;
+  form.classList.toggle("is-busy", isBusy);
+  const elements = Array.from(form.elements || []);
+  elements.forEach((element) => {
+    if (element.tagName === "FIELDSET") return;
+    element.disabled = isBusy;
+  });
+  const submitButton = form.querySelector('button[type="submit"]');
+  if (!submitButton) return;
+  if (isBusy) {
+    submitButton.dataset.originalText = submitButton.textContent;
+    submitButton.textContent = label || "Working...";
+  } else if (submitButton.dataset.originalText) {
+    submitButton.textContent = submitButton.dataset.originalText;
+    delete submitButton.dataset.originalText;
+  }
+}
+
+async function withFormBusy(form, action, label) {
+  setFormBusy(form, true, label);
+  try {
+    await action();
+  } finally {
+    setFormBusy(form, false);
+  }
+}
+
+function initDensityToggle() {
+  const button = document.getElementById("densityToggleButton");
+  if (!button) return;
+  const saved = localStorage.getItem("fenrir-density") || "comfort";
+  if (saved === "compact") {
+    document.body.classList.add("density-compact");
+  }
+  button.textContent = saved === "compact" ? "Density: Compact" : "Density: Comfort";
+  button.addEventListener("click", () => {
+    const isCompact = document.body.classList.toggle("density-compact");
+    const next = isCompact ? "compact" : "comfort";
+    localStorage.setItem("fenrir-density", next);
+    button.textContent = isCompact ? "Density: Compact" : "Density: Comfort";
+  });
 }
 
 let toastTimer;

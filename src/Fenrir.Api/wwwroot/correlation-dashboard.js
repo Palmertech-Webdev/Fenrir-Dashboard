@@ -137,39 +137,51 @@ function bindCorrelationDashboard() {
 
   document.getElementById("correlationRunForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    await runCorrelation();
+    await withFormBusy(event.currentTarget, async () => {
+      await runCorrelation();
+    }, "Running...");
   });
 
   document.getElementById("correlationRuleForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      name: form.get("name"),
-      description: form.get("description"),
-      severity: form.get("severity") || "Medium",
-      enabled: true,
-      ruleType: "custom",
-      queryDefinition: emptyToNull(form.get("queryDefinition")) || "custom",
-      timeWindowMinutes: Number(form.get("timeWindowMinutes") || 60),
-      groupByFields: emptyToNull(form.get("groupByFields")),
-      threshold: Number(form.get("threshold") || 1),
-      mitreTactic: emptyToNull(form.get("mitreTactic")),
-      mitreTechnique: emptyToNull(form.get("mitreTechnique"))
-    };
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const payload = {
+        name: form.get("name"),
+        description: form.get("description"),
+        severity: form.get("severity") || "Medium",
+        enabled: true,
+        ruleType: "custom",
+        queryDefinition: emptyToNull(form.get("queryDefinition")) || "custom",
+        timeWindowMinutes: Number(form.get("timeWindowMinutes") || 60),
+        groupByFields: emptyToNull(form.get("groupByFields")),
+        threshold: Number(form.get("threshold") || 1),
+        mitreTactic: emptyToNull(form.get("mitreTactic")),
+        mitreTechnique: emptyToNull(form.get("mitreTechnique"))
+      };
 
-    try {
-      await api("/api/correlation/rules", { method: "POST", body: payload });
-      event.currentTarget.reset();
-      await refreshCorrelationRules();
-      showToast("Correlation rule created");
-    } catch (error) {
-      showToast(`Rule creation failed: ${error.message}`);
-    }
+      try {
+        await api("/api/correlation/rules", { method: "POST", body: payload });
+        event.currentTarget.reset();
+        await refreshCorrelationRules();
+        showToast("Correlation rule created");
+      } catch (error) {
+        showToast(`Rule creation failed: ${error.message}`);
+      }
+    }, "Creating...");
   });
 
   document.getElementById("correlationAlertRows")?.addEventListener("click", async (event) => {
     const row = event.target.closest("tr[data-alert-id]");
     if (!row) return;
+    await loadEntityGraph(row.dataset.alertId);
+  });
+
+  document.getElementById("correlationAlertRows")?.addEventListener("keydown", async (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const row = event.target.closest("tr[data-alert-id]");
+    if (!row) return;
+    event.preventDefault();
     await loadEntityGraph(row.dataset.alertId);
   });
 }
@@ -270,7 +282,7 @@ function renderCorrelationRules() {
 
 function renderCorrelationAlerts() {
   renderRows("correlationAlertRows", correlationState.alerts, (alert) => `
-    <tr data-alert-id="${escapeHtml(alert.id)}">
+    <tr data-alert-id="${escapeHtml(alert.id)}" tabindex="0" role="button" aria-label="Open correlation alert ${escapeHtml(alert.title)}">
       <td>${pill(alert.severity)}</td>
       <td><strong>${escapeHtml(alert.title)}</strong><div class="muted-text">${escapeHtml(alert.description)}</div></td>
       <td>${escapeHtml(alert.ruleName)}<div class="muted-text">${escapeHtml(alert.mitreTactic || "")} ${escapeHtml(alert.mitreTechnique || "")}</div></td>

@@ -94,26 +94,28 @@ function bindWorkspaceModeDashboard() {
   document.getElementById("refreshWorkspaceButton")?.addEventListener("click", refreshWorkspaceMode);
   document.getElementById("workspaceModeForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      mode: form.get("mode"),
-      role: form.get("role") || (form.get("mode") === "HomeUser" ? "HomeUser" : "Analyst"),
-      userKey: "local",
-      showAdvancedFeatures: form.get("showAdvancedFeatures") === "on",
-      allowResponseActions: form.get("allowResponseActions") === "on",
-      allowEvidenceExports: form.get("allowEvidenceExports") === "on",
-      allowSourceConfiguration: form.get("allowSourceConfiguration") === "on"
-    };
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const payload = {
+        mode: form.get("mode"),
+        role: form.get("role") || (form.get("mode") === "HomeUser" ? "HomeUser" : "Analyst"),
+        userKey: "local",
+        showAdvancedFeatures: form.get("showAdvancedFeatures") === "on",
+        allowResponseActions: form.get("allowResponseActions") === "on",
+        allowEvidenceExports: form.get("allowEvidenceExports") === "on",
+        allowSourceConfiguration: form.get("allowSourceConfiguration") === "on"
+      };
 
-    try {
-      workspaceState.mode = await api("/api/workspace/mode", { method: "PUT", body: payload });
-      document.getElementById("workspaceModeResult").innerHTML = `<div class="result-title">${pill(workspaceState.mode.mode)} <span>${escapeHtml(workspaceState.mode.description)}</span></div>`;
-      renderWorkspaceMode();
-      applyWorkspaceMode();
-      showToast("Workspace mode updated");
-    } catch (error) {
-      document.getElementById("workspaceModeResult").innerHTML = renderError(error);
-    }
+      try {
+        workspaceState.mode = await api("/api/workspace/mode", { method: "PUT", body: payload });
+        document.getElementById("workspaceModeResult").innerHTML = `<div class="result-title">${pill(workspaceState.mode.mode)} <span>${escapeHtml(workspaceState.mode.description)}</span></div>`;
+        renderWorkspaceMode();
+        applyWorkspaceMode();
+        showToast("Workspace mode updated");
+      } catch (error) {
+        document.getElementById("workspaceModeResult").innerHTML = renderError(error);
+      }
+    }, "Updating...");
   });
 
   document.getElementById("workspaceModeSelect")?.addEventListener("change", event => {

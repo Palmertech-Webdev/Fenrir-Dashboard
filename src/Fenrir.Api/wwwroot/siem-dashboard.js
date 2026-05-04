@@ -45,48 +45,62 @@ function bindSiemDashboard() {
         renderSiemEventDetail(selected);
       }
     });
+
+    eventRows.addEventListener("keydown", async (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      const row = event.target.closest("tr[data-event-id]");
+      if (!row) return;
+      event.preventDefault();
+      const selected = state.events.find((item) => item.id === row.dataset.eventId);
+      if (selected) {
+        siemState.selectedEvent = selected;
+        renderSiemEventDetail(selected);
+      }
+    });
   }
 
   const agentForm = document.getElementById("siemAgentRegistrationForm");
   if (agentForm) {
     agentForm.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const form = new FormData(event.currentTarget);
-      const hostname = String(form.get("hostname") || "").trim();
-      const description = String(form.get("description") || "").trim();
-      const sourceName = String(form.get("name") || "").trim();
+      await withFormBusy(event.currentTarget, async () => {
+        const form = new FormData(event.currentTarget);
+        const hostname = String(form.get("hostname") || "").trim();
+        const description = String(form.get("description") || "").trim();
+        const sourceName = String(form.get("name") || "").trim();
 
-      const payload = {
-        name: sourceName,
-        sourceType: form.get("sourceType") || "agent",
-        vendor: form.get("vendor") || "Fenrir",
-        product: form.get("product") || "Fenrir Agent",
-        connectionType: "agent_push",
-        parser: form.get("parser") || "generic_json_v1",
-        description: description || (hostname ? `Agent telemetry source for ${hostname}` : "Agent telemetry source"),
-        isEnabled: true
-      };
+        const payload = {
+          name: sourceName,
+          sourceType: form.get("sourceType") || "agent",
+          vendor: form.get("vendor") || "Fenrir",
+          product: form.get("product") || "Fenrir Agent",
+          connectionType: "agent_push",
+          parser: form.get("parser") || "generic_json_v1",
+          description: description || (hostname ? `Agent telemetry source for ${hostname}` : "Agent telemetry source"),
+          isEnabled: true
+        };
 
-      const target = document.getElementById("siemAgentRegistrationResult");
-      target.innerHTML = `<div class="result-title">Registering agent source...</div>`;
+        const target = document.getElementById("siemAgentRegistrationResult");
+        target.innerHTML = `<div class="result-title">Registering agent source...</div>`;
 
-      try {
-        const source = await api("/api/siem/sources", { method: "POST", body: payload });
-        target.innerHTML = `
-          <div class="result-title">
-            ${pill(source.status)}
-            <span>${escapeHtml(source.name)}</span>
-          </div>
-          <p>Source registered and ready for agent telemetry.</p>
-          <p class="muted-text">Configure the agent to push telemetry using Source: <strong>${escapeHtml(source.name)}</strong>.</p>
-          ${jsonBlock(source)}
-        `;
-        showToast("SIEM agent source registered");
-        event.currentTarget.reset();
-        await refreshSiemCollector();
-      } catch (error) {
-        target.innerHTML = renderError(error);
-      }
+        try {
+          const source = await api("/api/siem/sources", { method: "POST", body: payload });
+          target.innerHTML = `
+            <div class="result-title">
+              ${pill(source.status)}
+              <span>${escapeHtml(source.name)}</span>
+            </div>
+            <p>Source registered and ready for agent telemetry.</p>
+            <p class="muted-text">Configure the agent to push telemetry using Source: <strong>${escapeHtml(source.name)}</strong>.</p>
+            ${jsonBlock(source)}
+          `;
+          showToast("SIEM agent source registered");
+          event.currentTarget.reset();
+          await refreshSiemCollector();
+        } catch (error) {
+          target.innerHTML = renderError(error);
+        }
+      }, "Registering...");
     });
   }
 
@@ -94,31 +108,33 @@ function bindSiemDashboard() {
   if (searchForm) {
     searchForm.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const form = new FormData(event.currentTarget);
-      const payload = {
-        source: emptyToNull(form.get("source")),
-        host: emptyToNull(form.get("host")),
-        severity: emptyToNull(form.get("severity")),
-        eventType: emptyToNull(form.get("eventType")),
-        userName: emptyToNull(form.get("userName")),
-        sourceIp: emptyToNull(form.get("sourceIp")),
-        destinationIp: emptyToNull(form.get("destinationIp")),
-        domain: emptyToNull(form.get("domain")),
-        fileHashSha256: emptyToNull(form.get("hash")),
-        eventCategory: emptyToNull(form.get("category")),
-        indicator: emptyToNull(form.get("indicator")),
-        take: 500
-      };
+      await withFormBusy(event.currentTarget, async () => {
+        const form = new FormData(event.currentTarget);
+        const payload = {
+          source: emptyToNull(form.get("source")),
+          host: emptyToNull(form.get("host")),
+          severity: emptyToNull(form.get("severity")),
+          eventType: emptyToNull(form.get("eventType")),
+          userName: emptyToNull(form.get("userName")),
+          sourceIp: emptyToNull(form.get("sourceIp")),
+          destinationIp: emptyToNull(form.get("destinationIp")),
+          domain: emptyToNull(form.get("domain")),
+          fileHashSha256: emptyToNull(form.get("hash")),
+          eventCategory: emptyToNull(form.get("category")),
+          indicator: emptyToNull(form.get("indicator")),
+          take: 500
+        };
 
-      try {
-        state.events = await api("/api/siem/events/search", { method: "POST", body: payload });
-        renderEvents();
-        renderDashboard();
-        renderSiemCollector();
-        showToast("Telemetry search completed");
-      } catch (error) {
-        showToast(`Telemetry search failed: ${error.message}`);
-      }
+        try {
+          state.events = await api("/api/siem/events/search", { method: "POST", body: payload });
+          renderEvents();
+          renderDashboard();
+          renderSiemCollector();
+          showToast("Telemetry search completed");
+        } catch (error) {
+          showToast(`Telemetry search failed: ${error.message}`);
+        }
+      }, "Searching...");
     });
   }
 }
@@ -329,7 +345,7 @@ function startSiemAutoRefresh() {
 
 function renderEvents() {
   renderRows("eventRows", state.events, (event) => `
-    <tr data-event-id="${escapeHtml(event.id)}">
+    <tr data-event-id="${escapeHtml(event.id)}" tabindex="0" role="button" aria-label="Open event ${escapeHtml(event.eventType || "event")}">
       <td>${pill(event.severity)}</td>
       <td>
         ${escapeHtml(event.sourceName || event.source || "")}
@@ -451,16 +467,4 @@ function formatRawJson(rawJson) {
 function isHealthySource(source) {
   const status = String(source.status || "").toLowerCase();
   return source.isEnabled !== false && (status === "healthy" || status === "warning" || status === "");
-}
-
-function setMetric(id, value) {
-  const element = document.getElementById(id);
-  if (element) {
-    element.textContent = value;
-  }
-}
-
-function emptyToNull(value) {
-  const text = String(value || "").trim();
-  return text.length ? text : null;
 }

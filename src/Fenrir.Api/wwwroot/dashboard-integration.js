@@ -173,32 +173,44 @@ function installPhaseDashboardBindings() {
     await openCase(row.dataset.caseId);
   });
 
+  document.getElementById("caseRows")?.addEventListener("keydown", async (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const row = event.target.closest("tr[data-case-id]");
+    if (!row) return;
+    event.preventDefault();
+    await openCase(row.dataset.caseId);
+  });
+
   document.getElementById("caseCreateForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      title: form.get("title"),
-      description: emptyToNull(form.get("description")),
-      severity: form.get("severity") || "Medium",
-      assignedTo: emptyToNull(form.get("assignedTo")),
-      createdBy: "analyst"
-    };
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const payload = {
+        title: form.get("title"),
+        description: emptyToNull(form.get("description")),
+        severity: form.get("severity") || "Medium",
+        assignedTo: emptyToNull(form.get("assignedTo")),
+        createdBy: "analyst"
+      };
 
-    try {
-      const created = await api("/api/cases", { method: "POST", body: payload });
-      document.getElementById("caseCreateResult").innerHTML = `<div class="result-title">${pill(created.severity)} <span>${escapeHtml(created.caseNumber)}</span></div><p>Case created.</p>`;
-      event.currentTarget.reset();
-      await refreshCases();
-      await openCase(created.id);
-      showToast("Case created");
-    } catch (error) {
-      document.getElementById("caseCreateResult").innerHTML = renderError(error);
-    }
+      try {
+        const created = await api("/api/cases", { method: "POST", body: payload });
+        document.getElementById("caseCreateResult").innerHTML = `<div class="result-title">${pill(created.severity)} <span>${escapeHtml(created.caseNumber)}</span></div><p>Case created.</p>`;
+        event.currentTarget.reset();
+        await refreshCases();
+        await openCase(created.id);
+        showToast("Case created");
+      } catch (error) {
+        document.getElementById("caseCreateResult").innerHTML = renderError(error);
+      }
+    }, "Creating...");
   });
 
   document.getElementById("investigationScopeForm")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    await runInvestigationViews();
+    await withFormBusy(event.currentTarget, async () => {
+      await runInvestigationViews();
+    }, "Running...");
   });
 
   document.getElementById("caseDetail")?.addEventListener("click", async (event) => {
@@ -275,7 +287,7 @@ function renderAgents() {
 
 function renderCases() {
   renderRows("caseRows", integrationState.cases, (item) => `
-    <tr data-case-id="${escapeHtml(item.id)}">
+    <tr data-case-id="${escapeHtml(item.id)}" tabindex="0" role="button" aria-label="Open case ${escapeHtml(item.caseNumber)}">
       <td><strong>${escapeHtml(item.caseNumber)}</strong><div class="muted-text">${escapeHtml(item.title)}</div></td>
       <td>${pill(item.severity)}</td>
       <td>${pill(item.status)}</td>
@@ -439,6 +451,7 @@ if (typeof originalRenderSiemEventDetail === "function") {
     originalRenderSiemEventDetail(event);
     const target = document.getElementById("siemEventDetail");
     if (!target) return;
+    target.querySelector(".integrated-event-actions")?.remove();
     const actions = document.createElement("div");
     actions.className = "pivot-list integrated-event-actions";
     actions.innerHTML = `

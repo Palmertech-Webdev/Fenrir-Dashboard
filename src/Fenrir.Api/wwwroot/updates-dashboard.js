@@ -138,57 +138,63 @@ function bindUpdatesDashboard() {
 
   document.getElementById("updateChannelForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    try {
-      const channel = await api("/api/updates/channels", { method: "POST", body: { name: form.get("name"), description: form.get("description") || "", isEnabled: form.get("isEnabled") === "on" } });
-      document.getElementById("updateChannelResult").innerHTML = `<div class="result-title">${pill(channel.isEnabled ? "Enabled" : "Disabled")} <span>${escapeHtml(channel.name)}</span></div>`;
-      event.currentTarget.reset();
-      await refreshUpdatesDashboard();
-      showToast("Update channel saved");
-    } catch (error) {
-      document.getElementById("updateChannelResult").innerHTML = renderError(error);
-    }
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      try {
+        const channel = await api("/api/updates/channels", { method: "POST", body: { name: form.get("name"), description: form.get("description") || "", isEnabled: form.get("isEnabled") === "on" } });
+        document.getElementById("updateChannelResult").innerHTML = `<div class="result-title">${pill(channel.isEnabled ? "Enabled" : "Disabled")} <span>${escapeHtml(channel.name)}</span></div>`;
+        event.currentTarget.reset();
+        await refreshUpdatesDashboard();
+        showToast("Update channel saved");
+      } catch (error) {
+        document.getElementById("updateChannelResult").innerHTML = renderError(error);
+      }
+    }, "Saving...");
   });
 
   document.getElementById("updateVerifyForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const payload = updatePackageMetadataFromForm(new FormData(event.currentTarget));
-    try {
-      const result = await api("/api/updates/verify", { method: "POST", body: payload });
-      document.getElementById("updateVerifyResult").innerHTML = renderVerificationResult(result);
-    } catch (error) {
-      document.getElementById("updateVerifyResult").innerHTML = renderError(error);
-    }
+    await withFormBusy(event.currentTarget, async () => {
+      const payload = updatePackageMetadataFromForm(new FormData(event.currentTarget));
+      try {
+        const result = await api("/api/updates/verify", { method: "POST", body: payload });
+        document.getElementById("updateVerifyResult").innerHTML = renderVerificationResult(result);
+      } catch (error) {
+        document.getElementById("updateVerifyResult").innerHTML = renderError(error);
+      }
+    }, "Verifying...");
   });
 
   document.getElementById("updatePackageForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      channelName: form.get("channelName"),
-      packageType: form.get("packageType"),
-      name: form.get("name"),
-      version: form.get("version"),
-      minimumAppVersion: form.get("minimumAppVersion") || "0.0.1",
-      targetPlatform: form.get("targetPlatform") || "any",
-      downloadUrl: form.get("downloadUrl"),
-      sha256: form.get("sha256"),
-      sizeBytes: Number(form.get("sizeBytes") || 0),
-      signatureAlgorithm: form.get("signatureAlgorithm") || "SHA256-RSA",
-      signature: form.get("signature"),
-      publicKeyId: form.get("publicKeyId") || "local-dev-key",
-      releaseNotes: form.get("releaseNotes") || "",
-      status: form.get("status") || "Draft"
-    };
-    try {
-      const packageDto = await api("/api/updates/packages", { method: "POST", body: payload });
-      document.getElementById("updatePackageResult").innerHTML = `<div class="result-title">${pill(packageDto.status)} <span>${escapeHtml(packageDto.name)} ${escapeHtml(packageDto.version)}</span></div><p>SHA256: <code>${escapeHtml(packageDto.sha256)}</code></p>`;
-      event.currentTarget.reset();
-      await refreshUpdatesDashboard();
-      showToast("Update package saved");
-    } catch (error) {
-      document.getElementById("updatePackageResult").innerHTML = renderError(error);
-    }
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const payload = {
+        channelName: form.get("channelName"),
+        packageType: form.get("packageType"),
+        name: form.get("name"),
+        version: form.get("version"),
+        minimumAppVersion: form.get("minimumAppVersion") || "0.0.1",
+        targetPlatform: form.get("targetPlatform") || "any",
+        downloadUrl: form.get("downloadUrl"),
+        sha256: form.get("sha256"),
+        sizeBytes: Number(form.get("sizeBytes") || 0),
+        signatureAlgorithm: form.get("signatureAlgorithm") || "SHA256-RSA",
+        signature: form.get("signature"),
+        publicKeyId: form.get("publicKeyId") || "local-dev-key",
+        releaseNotes: form.get("releaseNotes") || "",
+        status: form.get("status") || "Draft"
+      };
+      try {
+        const packageDto = await api("/api/updates/packages", { method: "POST", body: payload });
+        document.getElementById("updatePackageResult").innerHTML = `<div class="result-title">${pill(packageDto.status)} <span>${escapeHtml(packageDto.name)} ${escapeHtml(packageDto.version)}</span></div><p>SHA256: <code>${escapeHtml(packageDto.sha256)}</code></p>`;
+        event.currentTarget.reset();
+        await refreshUpdatesDashboard();
+        showToast("Update package saved");
+      } catch (error) {
+        document.getElementById("updatePackageResult").innerHTML = renderError(error);
+      }
+    }, "Publishing...");
   });
 
   document.getElementById("updatePackageRows")?.addEventListener("click", async event => {
@@ -207,8 +213,10 @@ function bindUpdatesDashboard() {
 
   document.getElementById("updateManifestForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await loadManifest(form.get("channelName"));
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      await loadManifest(form.get("channelName"));
+    }, "Loading...");
   });
 }
 

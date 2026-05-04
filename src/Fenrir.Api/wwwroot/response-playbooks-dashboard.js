@@ -134,73 +134,79 @@ function bindResponseDashboard() {
 
   document.getElementById("responsePlaybookForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      name: form.get("name"),
-      description: form.get("description"),
-      category: form.get("category") || "general",
-      severity: form.get("severity") || "Medium",
-      triggerType: "manual",
-      mitreTactic: emptyToNull(form.get("mitreTactic")),
-      mitreTechnique: emptyToNull(form.get("mitreTechnique")),
-      isEnabled: true
-    };
-    try {
-      const created = await api("/api/response-playbooks", { method: "POST", body: payload });
-      event.currentTarget.reset();
-      responseState.selectedPlaybookId = created.id;
-      await refreshResponsePlaybooks();
-      showToast("Response playbook created");
-    } catch (error) {
-      showToast(`Playbook creation failed: ${error.message}`);
-    }
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const payload = {
+        name: form.get("name"),
+        description: form.get("description"),
+        category: form.get("category") || "general",
+        severity: form.get("severity") || "Medium",
+        triggerType: "manual",
+        mitreTactic: emptyToNull(form.get("mitreTactic")),
+        mitreTechnique: emptyToNull(form.get("mitreTechnique")),
+        isEnabled: true
+      };
+      try {
+        const created = await api("/api/response-playbooks", { method: "POST", body: payload });
+        event.currentTarget.reset();
+        responseState.selectedPlaybookId = created.id;
+        await refreshResponsePlaybooks();
+        showToast("Response playbook created");
+      } catch (error) {
+        showToast(`Playbook creation failed: ${error.message}`);
+      }
+    }, "Creating...");
   });
 
   document.getElementById("responseStepForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const playbookId = form.get("playbookId");
-    if (!playbookId) return;
-    const payload = {
-      title: form.get("title"),
-      description: form.get("description"),
-      actionType: form.get("actionType") || "manual",
-      targetType: form.get("targetType") || "analyst",
-      commandPreview: emptyToNull(form.get("commandPreview")),
-      integrationKey: emptyToNull(form.get("integrationKey")),
-      requiresApproval: form.get("requiresApproval") === "on",
-      sortOrder: Number(form.get("sortOrder") || 0)
-    };
-    try {
-      await api(`/api/response-playbooks/${playbookId}/steps`, { method: "POST", body: payload });
-      event.currentTarget.reset();
-      await refreshResponsePlaybooks();
-      showToast("Step added");
-    } catch (error) {
-      showToast(`Step creation failed: ${error.message}`);
-    }
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const playbookId = form.get("playbookId");
+      if (!playbookId) return;
+      const payload = {
+        title: form.get("title"),
+        description: form.get("description"),
+        actionType: form.get("actionType") || "manual",
+        targetType: form.get("targetType") || "analyst",
+        commandPreview: emptyToNull(form.get("commandPreview")),
+        integrationKey: emptyToNull(form.get("integrationKey")),
+        requiresApproval: form.get("requiresApproval") === "on",
+        sortOrder: Number(form.get("sortOrder") || 0)
+      };
+      try {
+        await api(`/api/response-playbooks/${playbookId}/steps`, { method: "POST", body: payload });
+        event.currentTarget.reset();
+        await refreshResponsePlaybooks();
+        showToast("Step added");
+      } catch (error) {
+        showToast(`Step creation failed: ${error.message}`);
+      }
+    }, "Saving...");
   });
 
   document.getElementById("responseRunForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      playbookId: form.get("playbookId"),
-      caseId: emptyToNull(form.get("caseId")),
-      alertId: emptyToNull(form.get("alertId")),
-      eventId: emptyToNull(form.get("eventId")),
-      startedBy: "analyst",
-      notes: emptyToNull(form.get("notes"))
-    };
-    try {
-      const run = await api("/api/response-playbooks/runs", { method: "POST", body: payload });
-      responseState.selectedRunId = run.id;
-      await refreshResponseRuns();
-      renderResponseRunDetail(run);
-      showToast("Playbook run started");
-    } catch (error) {
-      showToast(`Run failed: ${error.message}`);
-    }
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const payload = {
+        playbookId: form.get("playbookId"),
+        caseId: emptyToNull(form.get("caseId")),
+        alertId: emptyToNull(form.get("alertId")),
+        eventId: emptyToNull(form.get("eventId")),
+        startedBy: "analyst",
+        notes: emptyToNull(form.get("notes"))
+      };
+      try {
+        const run = await api("/api/response-playbooks/runs", { method: "POST", body: payload });
+        responseState.selectedRunId = run.id;
+        await refreshResponseRuns();
+        renderResponseRunDetail(run);
+        showToast("Playbook run started");
+      } catch (error) {
+        showToast(`Run failed: ${error.message}`);
+      }
+    }, "Running...");
   });
 
   document.getElementById("responsePlaybookRows")?.addEventListener("click", event => {
@@ -210,9 +216,27 @@ function bindResponseDashboard() {
     updateResponseSelects();
   });
 
+  document.getElementById("responsePlaybookRows")?.addEventListener("keydown", event => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const row = event.target.closest("tr[data-playbook-id]");
+    if (!row) return;
+    event.preventDefault();
+    responseState.selectedPlaybookId = row.dataset.playbookId;
+    updateResponseSelects();
+  });
+
   document.getElementById("responseRunRows")?.addEventListener("click", event => {
     const row = event.target.closest("tr[data-run-id]");
     if (!row) return;
+    const run = responseState.runs.find(item => item.id === row.dataset.runId);
+    if (run) renderResponseRunDetail(run);
+  });
+
+  document.getElementById("responseRunRows")?.addEventListener("keydown", event => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const row = event.target.closest("tr[data-run-id]");
+    if (!row) return;
+    event.preventDefault();
     const run = responseState.runs.find(item => item.id === row.dataset.runId);
     if (run) renderResponseRunDetail(run);
   });
@@ -265,7 +289,7 @@ async function refreshResponseRuns() {
 
 function renderResponsePlaybooks() {
   renderRows("responsePlaybookRows", responseState.playbooks, item => `
-    <tr data-playbook-id="${escapeHtml(item.id)}">
+    <tr data-playbook-id="${escapeHtml(item.id)}" tabindex="0" role="button" aria-label="Select playbook ${escapeHtml(item.name)}">
       <td>${pill(item.severity)}</td>
       <td><strong>${escapeHtml(item.name)}</strong><div class="muted-text">${escapeHtml(item.description)}</div></td>
       <td>${pill(item.category)}</td>
@@ -277,7 +301,7 @@ function renderResponsePlaybooks() {
 
 function renderResponseRuns() {
   renderRows("responseRunRows", responseState.runs, item => `
-    <tr data-run-id="${escapeHtml(item.id)}">
+    <tr data-run-id="${escapeHtml(item.id)}" tabindex="0" role="button" aria-label="Open response run ${escapeHtml(item.playbookName || "")}">
       <td>${pill(item.status)}</td>
       <td><strong>${escapeHtml(item.playbookName)}</strong></td>
       <td>${item.caseId ? `Case: ${escapeHtml(item.caseId)}` : item.alertId ? `Alert: ${escapeHtml(item.alertId)}` : item.eventId ? `Event: ${escapeHtml(item.eventId)}` : "Manual"}</td>

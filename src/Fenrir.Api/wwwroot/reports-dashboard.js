@@ -127,78 +127,93 @@ function bindReportsDashboard() {
 
   document.getElementById("reportCreateForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      title: form.get("title"),
-      reportType: form.get("reportType") || "InvestigationSummary",
-      scope: emptyToNull(form.get("scope")),
-      requestedBy: "analyst",
-      caseId: emptyToNull(form.get("caseId")),
-      includeFindings: form.get("includeFindings") === "on",
-      includeSiemSummary: form.get("includeSiemSummary") === "on",
-      includeHuntRuns: form.get("includeHuntRuns") === "on",
-      includeResponseRuns: form.get("includeResponseRuns") === "on",
-      analystSummary: emptyToNull(form.get("analystSummary")),
-      conclusion: emptyToNull(form.get("conclusion"))
-    };
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const payload = {
+        title: form.get("title"),
+        reportType: form.get("reportType") || "InvestigationSummary",
+        scope: emptyToNull(form.get("scope")),
+        requestedBy: "analyst",
+        caseId: emptyToNull(form.get("caseId")),
+        includeFindings: form.get("includeFindings") === "on",
+        includeSiemSummary: form.get("includeSiemSummary") === "on",
+        includeHuntRuns: form.get("includeHuntRuns") === "on",
+        includeResponseRuns: form.get("includeResponseRuns") === "on",
+        analystSummary: emptyToNull(form.get("analystSummary")),
+        conclusion: emptyToNull(form.get("conclusion"))
+      };
 
-    try {
-      const report = await api("/api/reports", { method: "POST", body: payload });
-      reportState.selectedReportId = report.id;
-      document.getElementById("reportCreateResult").innerHTML = `<div class="result-title">${pill(report.status)} <span>${escapeHtml(report.title)}</span></div><p>SHA256: <code>${escapeHtml(report.sha256)}</code></p>`;
-      event.currentTarget.reset();
-      await refreshReportsDashboard();
-      renderReportDetail(report);
-      showToast("Report generated and sealed");
-    } catch (error) {
-      document.getElementById("reportCreateResult").innerHTML = renderError(error);
-      showToast(`Report generation failed: ${error.message}`);
-    }
+      try {
+        const report = await api("/api/reports", { method: "POST", body: payload });
+        reportState.selectedReportId = report.id;
+        document.getElementById("reportCreateResult").innerHTML = `<div class="result-title">${pill(report.status)} <span>${escapeHtml(report.title)}</span></div><p>SHA256: <code>${escapeHtml(report.sha256)}</code></p>`;
+        event.currentTarget.reset();
+        await refreshReportsDashboard();
+        renderReportDetail(report);
+        showToast("Report generated and sealed");
+      } catch (error) {
+        document.getElementById("reportCreateResult").innerHTML = renderError(error);
+        showToast(`Report generation failed: ${error.message}`);
+      }
+    }, "Generating...");
   });
 
   document.getElementById("evidenceSealForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      entityType: form.get("entityType"),
-      entityId: form.get("entityId"),
-      payload: form.get("payload"),
-      notes: emptyToNull(form.get("notes")),
-      sealedBy: "analyst"
-    };
-    try {
-      const seal = await api("/api/reports/evidence-integrity", { method: "POST", body: payload });
-      document.getElementById("evidenceSealResult").innerHTML = `<div class="result-title">${pill("Sealed")} <span>${escapeHtml(seal.entityType)}:${escapeHtml(seal.entityId)}</span></div><p>SHA256: <code>${escapeHtml(seal.sha256)}</code></p>`;
-      event.currentTarget.reset();
-      await refreshEvidenceRecords();
-      showToast("Evidence sealed");
-    } catch (error) {
-      document.getElementById("evidenceSealResult").innerHTML = renderError(error);
-      showToast(`Evidence seal failed: ${error.message}`);
-    }
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const payload = {
+        entityType: form.get("entityType"),
+        entityId: form.get("entityId"),
+        payload: form.get("payload"),
+        notes: emptyToNull(form.get("notes")),
+        sealedBy: "analyst"
+      };
+      try {
+        const seal = await api("/api/reports/evidence-integrity", { method: "POST", body: payload });
+        document.getElementById("evidenceSealResult").innerHTML = `<div class="result-title">${pill("Sealed")} <span>${escapeHtml(seal.entityType)}:${escapeHtml(seal.entityId)}</span></div><p>SHA256: <code>${escapeHtml(seal.sha256)}</code></p>`;
+        event.currentTarget.reset();
+        await refreshEvidenceRecords();
+        showToast("Evidence sealed");
+      } catch (error) {
+        document.getElementById("evidenceSealResult").innerHTML = renderError(error);
+        showToast(`Evidence seal failed: ${error.message}`);
+      }
+    }, "Sealing...");
   });
 
   document.getElementById("evidenceVerifyForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      integrityRecordId: form.get("integrityRecordId"),
-      payload: form.get("payload")
-    };
-    try {
-      const result = await api("/api/reports/evidence-integrity/verify", { method: "POST", body: payload });
-      document.getElementById("evidenceVerifyResult").innerHTML = `
-        <div class="result-title">${pill(result.isValid ? "Valid" : "Mismatch")} <span>${escapeHtml(result.summary)}</span></div>
-        <p>Expected: <code>${escapeHtml(result.expectedSha256)}</code></p>
-        <p>Actual: <code>${escapeHtml(result.actualSha256)}</code></p>`;
-    } catch (error) {
-      document.getElementById("evidenceVerifyResult").innerHTML = renderError(error);
-    }
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const payload = {
+        integrityRecordId: form.get("integrityRecordId"),
+        payload: form.get("payload")
+      };
+      try {
+        const result = await api("/api/reports/evidence-integrity/verify", { method: "POST", body: payload });
+        document.getElementById("evidenceVerifyResult").innerHTML = `
+          <div class="result-title">${pill(result.isValid ? "Valid" : "Mismatch")} <span>${escapeHtml(result.summary)}</span></div>
+          <p>Expected: <code>${escapeHtml(result.expectedSha256)}</code></p>
+          <p>Actual: <code>${escapeHtml(result.actualSha256)}</code></p>`;
+      } catch (error) {
+        document.getElementById("evidenceVerifyResult").innerHTML = renderError(error);
+      }
+    }, "Verifying...");
   });
 
   document.getElementById("reportRows")?.addEventListener("click", event => {
     const row = event.target.closest("tr[data-report-id]");
     if (!row) return;
+    const report = reportState.reports.find(item => item.id === row.dataset.reportId);
+    if (report) renderReportDetail(report);
+  });
+
+  document.getElementById("reportRows")?.addEventListener("keydown", event => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const row = event.target.closest("tr[data-report-id]");
+    if (!row) return;
+    event.preventDefault();
     const report = reportState.reports.find(item => item.id === row.dataset.reportId);
     if (report) renderReportDetail(report);
   });
@@ -234,7 +249,7 @@ async function refreshEvidenceRecords() {
 
 function renderReports() {
   renderRows("reportRows", reportState.reports, report => `
-    <tr data-report-id="${escapeHtml(report.id)}">
+    <tr data-report-id="${escapeHtml(report.id)}" tabindex="0" role="button" aria-label="Open report ${escapeHtml(report.title)}">
       <td>${pill(report.status)}</td>
       <td><strong>${escapeHtml(report.title)}</strong><div class="muted-text">${escapeHtml(report.scope || "No scope")}</div></td>
       <td>${escapeHtml(report.reportType)}</td>

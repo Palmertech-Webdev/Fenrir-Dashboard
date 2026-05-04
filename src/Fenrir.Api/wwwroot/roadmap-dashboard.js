@@ -86,23 +86,25 @@ function bindRoadmapDashboard() {
   document.getElementById("refreshRoadmapButton")?.addEventListener("click", refreshRoadmapDashboard);
   document.getElementById("roadmapImprovementForm")?.addEventListener("submit", async event => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      title: form.get("title"),
-      area: form.get("area"),
-      priority: form.get("priority"),
-      description: form.get("description") || ""
-    };
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      const payload = {
+        title: form.get("title"),
+        area: form.get("area"),
+        priority: form.get("priority"),
+        description: form.get("description") || ""
+      };
 
-    try {
-      const item = await api("/api/roadmap/improvements", { method: "POST", body: payload });
-      document.getElementById("roadmapImprovementResult").innerHTML = `<div class="result-title">${pill(item.priority)} <span>${escapeHtml(item.title)}</span></div>`;
-      event.currentTarget.reset();
-      await refreshRoadmapDashboard();
-      showToast("Improvement captured");
-    } catch (error) {
-      document.getElementById("roadmapImprovementResult").innerHTML = renderError(error);
-    }
+      try {
+        const item = await api("/api/roadmap/improvements", { method: "POST", body: payload });
+        document.getElementById("roadmapImprovementResult").innerHTML = `<div class="result-title">${pill(item.priority)} <span>${escapeHtml(item.title)}</span></div>`;
+        event.currentTarget.reset();
+        await refreshRoadmapDashboard();
+        showToast("Improvement captured");
+      } catch (error) {
+        document.getElementById("roadmapImprovementResult").innerHTML = renderError(error);
+      }
+    }, "Saving...");
   });
 }
 
