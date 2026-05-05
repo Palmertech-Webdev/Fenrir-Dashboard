@@ -9,8 +9,19 @@ namespace Fenrir.Api.Controllers;
 public sealed class DnsController(IDnsMonitoringService dnsMonitoring) : ControllerBase
 {
     [HttpPost("check-domain")]
-    public async Task<ActionResult<DnsDomainCheckResponse>> CheckDomain(DnsDomainCheckRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<DnsDomainCheckResponse>> CheckDomain(
+        [FromBody] DnsDomainCheckRequest? request,
+        CancellationToken cancellationToken)
     {
+        if (request is null || string.IsNullOrWhiteSpace(request.Domain))
+        {
+            return BadRequest(new
+            {
+                error = "A domain is required.",
+                expectedBody = new { domain = "example.com" }
+            });
+        }
+
         try
         {
             var response = await dnsMonitoring.CheckDomainAsync(request, cancellationToken);
@@ -18,7 +29,11 @@ public sealed class DnsController(IDnsMonitoringService dnsMonitoring) : Control
         }
         catch (ArgumentException exception)
         {
-            return BadRequest(new { error = exception.Message });
+            return BadRequest(new
+            {
+                error = exception.Message,
+                expectedBody = new { domain = "example.com" }
+            });
         }
     }
 
@@ -30,8 +45,19 @@ public sealed class DnsController(IDnsMonitoringService dnsMonitoring) : Control
     }
 
     [HttpPost("monitored-domains")]
-    public async Task<ActionResult<MonitoredDomainDto>> AddMonitoredDomain(MonitoredDomainRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<MonitoredDomainDto>> AddMonitoredDomain(
+        [FromBody] MonitoredDomainRequest? request,
+        CancellationToken cancellationToken)
     {
+        if (request is null || string.IsNullOrWhiteSpace(request.Domain))
+        {
+            return BadRequest(new
+            {
+                error = "A domain is required.",
+                expectedBody = new { domain = "example.com", owner = "Optional owner" }
+            });
+        }
+
         try
         {
             var response = await dnsMonitoring.AddMonitoredDomainAsync(request, cancellationToken);
@@ -39,7 +65,11 @@ public sealed class DnsController(IDnsMonitoringService dnsMonitoring) : Control
         }
         catch (ArgumentException exception)
         {
-            return BadRequest(new { error = exception.Message });
+            return BadRequest(new
+            {
+                error = exception.Message,
+                expectedBody = new { domain = "example.com", owner = "Optional owner" }
+            });
         }
     }
 }
