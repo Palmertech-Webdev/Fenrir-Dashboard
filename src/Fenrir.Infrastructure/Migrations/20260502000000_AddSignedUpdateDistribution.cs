@@ -59,14 +59,10 @@ public partial class AddSignedUpdateDistribution : Migration
         migrationBuilder.CreateIndex("IX_UpdatePackages_Version", "UpdatePackages", "Version");
         migrationBuilder.CreateIndex("IX_UpdatePackages_PublicKeyId", "UpdatePackages", "PublicKeyId");
 
-        migrationBuilder.InsertData(
-            table: "UpdateChannels",
-            columns: new[] { "Id", "Name", "Description", "IsEnabled", "CreatedAtUtc", "UpdatedAtUtc" },
-            values: new object[,]
-            {
-                { Guid.Parse("018f8df0-27ab-7b8d-b585-3fd0f7c2b101"), "stable", "Stable signed updates and rule bundles", true, new DateTime(2026, 05, 02, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 05, 02, 0, 0, 0, DateTimeKind.Utc) },
-                { Guid.Parse("018f8df0-27ab-7b8d-b585-3fd0f7c2b102"), "preview", "Preview channel for controlled testing before stable release", true, new DateTime(2026, 05, 02, 0, 0, 0, DateTimeKind.Utc), new DateTime(2026, 05, 02, 0, 0, 0, DateTimeKind.Utc) }
-            });
+        migrationBuilder.Sql(@"INSERT INTO ""UpdateChannels"" (""Id"", ""Name"", ""Description"", ""IsEnabled"", ""CreatedAtUtc"", ""UpdatedAtUtc"")
+            VALUES
+            ('018f8df0-27ab-7b8d-b585-3fd0f7c2b101', 'stable', 'Stable signed updates and rule bundles', true, '2026-05-02T00:00:00Z', '2026-05-02T00:00:00Z'),
+            ('018f8df0-27ab-7b8d-b585-3fd0f7c2b102', 'preview', 'Preview channel for controlled testing before stable release', true, '2026-05-02T00:00:00Z', '2026-05-02T00:00:00Z');");
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)

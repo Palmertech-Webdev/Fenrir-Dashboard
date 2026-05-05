@@ -211,14 +211,23 @@ public sealed class HuntsController(FenrirDbContext dbContext) : ControllerBase
     private async Task<List<HuntPackDto>> ReadPacksAsync(CancellationToken cancellationToken)
     {
         var packs = new List<HuntPackDto>();
-        await using var command = await CreateCommandAsync("SELECT * FROM \"HuntPacks\" ORDER BY \"CreatedAtUtc\"", cancellationToken);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        await using (var command = await CreateCommandAsync("SELECT * FROM \"HuntPacks\" ORDER BY \"CreatedAtUtc\"", cancellationToken))
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
         {
-            var id = GetGuid(reader, "Id");
-            packs.Add(new HuntPackDto(id, GetString(reader, "Name"), GetString(reader, "Description"), GetString(reader, "Category"), GetString(reader, "Severity"), GetString(reader, "MitreTactic"), GetNullableString(reader, "MitreTechnique"), GetBool(reader, "IsEnabled"), GetDate(reader, "CreatedAtUtc"), GetDate(reader, "UpdatedAtUtc"), await ReadQueriesAsync(id, cancellationToken)));
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var id = GetGuid(reader, "Id");
+                packs.Add(new HuntPackDto(id, GetString(reader, "Name"), GetString(reader, "Description"), GetString(reader, "Category"), GetString(reader, "Severity"), GetString(reader, "MitreTactic"), GetNullableString(reader, "MitreTechnique"), GetBool(reader, "IsEnabled"), GetDate(reader, "CreatedAtUtc"), GetDate(reader, "UpdatedAtUtc"), []));
+            }
         }
-        return packs;
+
+        var completed = new List<HuntPackDto>();
+        foreach (var pack in packs)
+        {
+            completed.Add(pack with { Queries = await ReadQueriesAsync(pack.Id, cancellationToken) });
+        }
+
+        return completed;
     }
 
     private async Task<List<HuntQueryDto>> ReadQueriesAsync(Guid packId, CancellationToken cancellationToken)
@@ -236,14 +245,23 @@ public sealed class HuntsController(FenrirDbContext dbContext) : ControllerBase
     private async Task<List<HuntRunDto>> ReadRunsAsync(CancellationToken cancellationToken)
     {
         var runs = new List<HuntRunDto>();
-        await using var command = await CreateCommandAsync("SELECT * FROM \"HuntRuns\" ORDER BY \"StartedAtUtc\" DESC LIMIT 100", cancellationToken);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        await using (var command = await CreateCommandAsync("SELECT * FROM \"HuntRuns\" ORDER BY \"StartedAtUtc\" DESC LIMIT 100", cancellationToken))
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
         {
-            var id = GetGuid(reader, "Id");
-            runs.Add(new HuntRunDto(id, GetGuid(reader, "HuntPackId"), GetString(reader, "HuntPackName"), GetString(reader, "Status"), GetInt(reader, "LookbackHours"), GetString(reader, "StartedBy"), GetNullableString(reader, "Scope"), GetNullableGuid(reader, "CaseId"), GetDate(reader, "StartedAtUtc"), GetNullableDate(reader, "CompletedAtUtc"), GetInt(reader, "Matches"), await ReadResultsAsync(id, cancellationToken)));
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var id = GetGuid(reader, "Id");
+                runs.Add(new HuntRunDto(id, GetGuid(reader, "HuntPackId"), GetString(reader, "HuntPackName"), GetString(reader, "Status"), GetInt(reader, "LookbackHours"), GetString(reader, "StartedBy"), GetNullableString(reader, "Scope"), GetNullableGuid(reader, "CaseId"), GetDate(reader, "StartedAtUtc"), GetNullableDate(reader, "CompletedAtUtc"), GetInt(reader, "Matches"), []));
+            }
         }
-        return runs;
+
+        var completed = new List<HuntRunDto>();
+        foreach (var run in runs)
+        {
+            completed.Add(run with { Results = await ReadResultsAsync(run.Id, cancellationToken) });
+        }
+
+        return completed;
     }
 
     private async Task<List<HuntRunResultDto>> ReadResultsAsync(Guid runId, CancellationToken cancellationToken)

@@ -612,6 +612,133 @@ namespace Fenrir.Infrastructure.Migrations
                     b.ToTable("WorkspaceModes", (string)null);
                 });
 
+            modelBuilder.Entity("Fenrir.Domain.Entities.UpdateChannel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsEnabled");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("UpdateChannels", (string)null);
+                });
+
+            modelBuilder.Entity("Fenrir.Domain.Entities.UpdatePackage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ChannelId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DownloadUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("PublishedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MinimumAppVersion")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("character varying(180)");
+
+                    b.Property<string>("PackageType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("PublicKeyId")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("ReleaseNotes")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Signature")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SignatureAlgorithm")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("TargetPlatform")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChannelId");
+
+                    b.HasIndex("PackageType");
+
+                    b.HasIndex("PublicKeyId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("Version");
+
+                    b.ToTable("UpdatePackages", (string)null);
+                });
+
             modelBuilder.Entity("Fenrir.Domain.Entities.JobRecord", b =>
                 {
                     b.Property<Guid>("Id")

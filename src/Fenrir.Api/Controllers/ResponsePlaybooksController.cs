@@ -188,14 +188,23 @@ public sealed class ResponsePlaybooksController(FenrirDbContext dbContext) : Con
     private async Task<List<ResponsePlaybookDto>> ReadPlaybooksAsync(CancellationToken cancellationToken)
     {
         var playbooks = new List<ResponsePlaybookDto>();
-        await using var command = await CreateCommandAsync("SELECT * FROM \"ResponsePlaybooks\" ORDER BY \"CreatedAtUtc\"", cancellationToken);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        await using (var command = await CreateCommandAsync("SELECT * FROM \"ResponsePlaybooks\" ORDER BY \"CreatedAtUtc\"", cancellationToken))
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
         {
-            var id = GetGuid(reader, "Id");
-            playbooks.Add(new ResponsePlaybookDto(id, GetString(reader, "Name"), GetString(reader, "Description"), GetString(reader, "Category"), GetString(reader, "Severity"), GetString(reader, "TriggerType"), GetNullableString(reader, "MitreTactic"), GetNullableString(reader, "MitreTechnique"), GetBool(reader, "IsEnabled"), GetDate(reader, "CreatedAtUtc"), GetDate(reader, "UpdatedAtUtc"), await ReadStepsAsync(id, cancellationToken)));
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var id = GetGuid(reader, "Id");
+                playbooks.Add(new ResponsePlaybookDto(id, GetString(reader, "Name"), GetString(reader, "Description"), GetString(reader, "Category"), GetString(reader, "Severity"), GetString(reader, "TriggerType"), GetNullableString(reader, "MitreTactic"), GetNullableString(reader, "MitreTechnique"), GetBool(reader, "IsEnabled"), GetDate(reader, "CreatedAtUtc"), GetDate(reader, "UpdatedAtUtc"), []));
+            }
         }
-        return playbooks;
+
+        var completed = new List<ResponsePlaybookDto>();
+        foreach (var playbook in playbooks)
+        {
+            completed.Add(playbook with { Steps = await ReadStepsAsync(playbook.Id, cancellationToken) });
+        }
+
+        return completed;
     }
 
     private async Task<List<ResponsePlaybookStepDto>> ReadStepsAsync(Guid playbookId, CancellationToken cancellationToken)
@@ -213,14 +222,23 @@ public sealed class ResponsePlaybooksController(FenrirDbContext dbContext) : Con
     private async Task<List<ResponsePlaybookRunDto>> ReadRunsAsync(CancellationToken cancellationToken)
     {
         var runs = new List<ResponsePlaybookRunDto>();
-        await using var command = await CreateCommandAsync("SELECT * FROM \"ResponsePlaybookRuns\" ORDER BY \"StartedAtUtc\" DESC LIMIT 100", cancellationToken);
-        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        await using (var command = await CreateCommandAsync("SELECT * FROM \"ResponsePlaybookRuns\" ORDER BY \"StartedAtUtc\" DESC LIMIT 100", cancellationToken))
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
         {
-            var id = GetGuid(reader, "Id");
-            runs.Add(new ResponsePlaybookRunDto(id, GetGuid(reader, "PlaybookId"), GetString(reader, "PlaybookName"), GetNullableGuid(reader, "CaseId"), GetNullableGuid(reader, "AlertId"), GetNullableGuid(reader, "EventId"), GetString(reader, "Status"), GetString(reader, "StartedBy"), GetNullableString(reader, "Notes"), GetDate(reader, "StartedAtUtc"), GetNullableDate(reader, "CompletedAtUtc"), await ReadRunStepsAsync(id, cancellationToken)));
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var id = GetGuid(reader, "Id");
+                runs.Add(new ResponsePlaybookRunDto(id, GetGuid(reader, "PlaybookId"), GetString(reader, "PlaybookName"), GetNullableGuid(reader, "CaseId"), GetNullableGuid(reader, "AlertId"), GetNullableGuid(reader, "EventId"), GetString(reader, "Status"), GetString(reader, "StartedBy"), GetNullableString(reader, "Notes"), GetDate(reader, "StartedAtUtc"), GetNullableDate(reader, "CompletedAtUtc"), []));
+            }
         }
-        return runs;
+
+        var completed = new List<ResponsePlaybookRunDto>();
+        foreach (var run in runs)
+        {
+            completed.Add(run with { Steps = await ReadRunStepsAsync(run.Id, cancellationToken) });
+        }
+
+        return completed;
     }
 
     private async Task<List<ResponsePlaybookRunStepDto>> ReadRunStepsAsync(Guid runId, CancellationToken cancellationToken)
