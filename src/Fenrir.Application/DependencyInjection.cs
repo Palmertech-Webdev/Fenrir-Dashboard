@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddHostedService<SiemIngestionWorkerHostedService>();
         services.AddScoped<ICaseService, CaseService>();
         services.AddScoped<IAgentService, AgentService>();
+        services.AddScoped<IAgentPackageBuilder, AgentPackageBuilder>();
         services.AddScoped<ISiemParserRegistry, SiemParserRegistry>();
         services.AddScoped<ISiemParser, GenericJsonSiemParser>();
         services.AddScoped<ISiemParser, ZeekJsonSiemParser>();

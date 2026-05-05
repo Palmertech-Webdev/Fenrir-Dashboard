@@ -101,7 +101,8 @@ function bindForms() {
     event.preventDefault();
     await withFormBusy(event.currentTarget, async () => {
       const form = new FormData(event.currentTarget);
-      await runTool("/api/dns/check-domain", { domain: form.get("domain") }, "dnsCheckResult", renderDnsResult);
+      const domain = String(form.get("domain") || "").trim();
+      await runTool("/api/dns/check-domain", { domain }, "dnsCheckResult", renderDnsResult);
     }, "Checking...");
   });
 
@@ -112,8 +113,8 @@ function bindForms() {
       await api("/api/dns/monitored-domains", {
         method: "POST",
         body: {
-          domain: form.get("domain"),
-          owner: form.get("owner") || null
+          domain: String(form.get("domain") || "").trim(),
+          owner: String(form.get("owner") || "").trim() || null
         }
       });
       showToast("Monitored domain added");

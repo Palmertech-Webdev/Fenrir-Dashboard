@@ -7,6 +7,11 @@ public sealed record AgentEnrolmentTokenCreateRequest(
     DateTime? ExpiresAtUtc = null,
     int? MaxUses = null);
 
+public sealed record AgentBuildRequest(
+    string CompanyName,
+    string ServerUrl,
+    string? SourceName = null);
+
 public sealed record AgentEnrolmentTokenCreatedResponse(
     Guid Id,
     string Name,

@@ -104,6 +104,86 @@ function bindSiemDashboard() {
     });
   }
 
+  const agentBuilderForm = document.getElementById("siemAgentBuilderForm");
+  if (agentBuilderForm) {
+    agentBuilderForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await withFormBusy(event.currentTarget, async () => {
+        const formElement = event.currentTarget;
+        const companyInput = formElement.querySelector("[name='companyName']");
+        const serverUrlInput = formElement.querySelector("[name='serverUrl']");
+        const sourceInput = formElement.querySelector("[name='sourceName']");
+        const companyName = String(companyInput?.value || "").trim();
+        const serverUrl = String(serverUrlInput?.value || "").trim();
+        const sourceName = String(sourceInput?.value || "").trim();
+        const target = document.getElementById("siemAgentBuilderResult");
+        const validationTarget = document.getElementById("siemAgentBuilderValidation");
+
+        if (validationTarget) {
+          validationTarget.textContent = "";
+        }
+
+        if (!companyInput || !serverUrlInput) {
+          if (validationTarget) {
+            validationTarget.textContent = "Unable to read the agent builder form fields. Please refresh the page.";
+          }
+          target.innerHTML = "";
+          return;
+        }
+
+        if (!companyName || !serverUrl) {
+          if (validationTarget) {
+            validationTarget.textContent = "Company name and server API URL / IP address are required.";
+          }
+          target.innerHTML = "";
+          return;
+        }
+
+        const normalizedServerUrl = normalizeServerAddress(serverUrl);
+        if (!normalizedServerUrl) {
+          if (validationTarget) {
+            validationTarget.textContent = "Server API URL must be a valid http(s) URL or IP address.";
+          }
+          target.innerHTML = "";
+          return;
+        }
+
+        console.debug("Agent builder submit", { companyName, serverUrl, normalizedServerUrl, sourceName });
+        target.innerHTML = `<div class="result-title">Building agent package...</div>`;
+
+        try {
+          const response = await fetch("/api/agents/build", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ companyName, serverUrl: normalizedServerUrl, sourceName: sourceName || null })
+          });
+
+          if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || response.statusText);
+          }
+
+          const blob = await response.blob();
+          const fileName = `FenrirAgent-${companyName.replace(/[^a-z0-9_-]/gi, "_") || "agent"}.zip`;
+          const url = URL.createObjectURL(blob);
+          const anchor = document.createElement("a");
+          anchor.href = url;
+          anchor.download = fileName;
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 15000);
+
+          target.innerHTML = `<div class="result-title">Agent package created</div><p>Download should start automatically. If not, <a href="${url}" download="${fileName}">click here</a>.</p>`;
+          showToast("Agent package created");
+          event.currentTarget.reset();
+        } catch (error) {
+          target.innerHTML = renderError(error);
+        }
+      }, "Building...");
+    });
+  }
+
   const searchForm = document.getElementById("siemSearchForm");
   if (searchForm) {
     searchForm.addEventListener("submit", async (event) => {
@@ -462,6 +542,37 @@ function formatRawJson(rawJson) {
   } catch {
     return rawJson;
   }
+}
+
+function normalizeServerAddress(value) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = String(value).trim();
+  const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed);
+  let candidate = trimmed;
+
+  if (!hasScheme) {
+    const scheme = window.location.protocol || "http:";
+    const port = window.location.port ? `:${window.location.port}` : "";
+    const hostPort = trimmed.includes(":" ) ? trimmed : `${trimmed}${port}`;
+    candidate = `${scheme}//${hostPort}`;
+  }
+
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return null;
+    }
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
+function isValidServerAddress(value) {
+  return normalizeServerAddress(value) !== null;
 }
 
 function isHealthySource(source) {

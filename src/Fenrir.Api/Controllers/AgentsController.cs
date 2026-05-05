@@ -6,8 +6,32 @@ namespace Fenrir.Api.Controllers;
 
 [ApiController]
 [Route("api/agents")]
-public sealed class AgentsController(IAgentService agentService) : ControllerBase
+public sealed class AgentsController(IAgentService agentService, IAgentPackageBuilder packageBuilder) : ControllerBase
 {
+    [HttpPost("build")]
+    public async Task<IActionResult> BuildAgentPackage(AgentBuildRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.ServerUrl))
+        {
+            return BadRequest(new { error = "Server API URL or IP address is required." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.CompanyName))
+        {
+            return BadRequest(new { error = "Company name is required." });
+        }
+
+        try
+        {
+            var result = await packageBuilder.BuildPackageAsync(request, cancellationToken);
+            return File(result.Content, "application/zip", result.FileName);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpPost("enrolment-tokens")]
     public async Task<ActionResult<AgentEnrolmentTokenCreatedResponse>> CreateEnrolmentToken(AgentEnrolmentTokenCreateRequest request, CancellationToken cancellationToken)
     {

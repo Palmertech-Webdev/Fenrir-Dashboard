@@ -385,6 +385,13 @@ textarea {
   line-height: 1.45;
 }
 
+.field-error {
+  color: #b91c1c;
+  font-size: 0.95rem;
+  margin-top: -6px;
+  margin-bottom: 6px;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
