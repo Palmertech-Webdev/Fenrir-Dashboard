@@ -35,24 +35,8 @@ public partial class AddWorkspaceModes : Migration
         migrationBuilder.CreateIndex("IX_WorkspaceModes_UserKey", "WorkspaceModes", "UserKey", unique: true);
         migrationBuilder.CreateIndex("IX_WorkspaceModes_Mode", "WorkspaceModes", "Mode");
 
-        migrationBuilder.InsertData(
-            table: "WorkspaceModes",
-            columns: new[] { "Id", "UserKey", "Mode", "Role", "DisplayName", "Description", "ShowAdvancedFeatures", "AllowResponseActions", "AllowEvidenceExports", "AllowSourceConfiguration", "CreatedAtUtc", "UpdatedAtUtc" },
-            values: new object[]
-            {
-                Guid.Parse("018f8df0-27ab-7b8d-b585-3fd0f7c2b014"),
-                "local",
-                "Analyst",
-                "Analyst",
-                "Analyst Mode",
-                "Full SOC investigation workspace with advanced telemetry, response workflows and configuration controls.",
-                true,
-                true,
-                true,
-                true,
-                new DateTime(2026, 05, 01, 0, 0, 0, DateTimeKind.Utc),
-                new DateTime(2026, 05, 01, 0, 0, 0, DateTimeKind.Utc)
-            });
+        migrationBuilder.Sql(@"INSERT INTO ""WorkspaceModes"" (""Id"", ""UserKey"", ""Mode"", ""Role"", ""DisplayName"", ""Description"", ""ShowAdvancedFeatures"", ""AllowResponseActions"", ""AllowEvidenceExports"", ""AllowSourceConfiguration"", ""CreatedAtUtc"", ""UpdatedAtUtc"")
+            VALUES ('018f8df0-27ab-7b8d-b585-3fd0f7c2b014', 'local', 'Analyst', 'Analyst', 'Analyst Mode', 'Full SOC investigation workspace with advanced telemetry, response workflows and configuration controls.', true, true, true, true, '2026-05-01T00:00:00Z', '2026-05-01T00:00:00Z');");
     }
 
     protected override void Down(MigrationBuilder migrationBuilder)

@@ -29,6 +29,9 @@ public sealed class FenrirDbContext(DbContextOptions<FenrirDbContext> options) :
     public DbSet<SiemSourceHealthSnapshot> SiemSourceHealthSnapshots => Set<SiemSourceHealthSnapshot>();
     public DbSet<SiemIngestionJob> SiemIngestionJobs => Set<SiemIngestionJob>();
     public DbSet<SiemRawIngestionBatch> SiemRawIngestionBatches => Set<SiemRawIngestionBatch>();
+    public DbSet<WorkspaceMode> WorkspaceModes => Set<WorkspaceMode>();
+    public DbSet<UpdateChannel> UpdateChannels => Set<UpdateChannel>();
+    public DbSet<UpdatePackage> UpdatePackages => Set<UpdatePackage>();
     public DbSet<Finding> Findings => Set<Finding>();
     public DbSet<JobRecord> Jobs => Set<JobRecord>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -336,6 +339,49 @@ public sealed class FenrirDbContext(DbContextOptions<FenrirDbContext> options) :
                 .WithOne(job => job.RawBatch)
                 .HasForeignKey<SiemRawIngestionBatch>(batch => batch.JobId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<WorkspaceMode>(entity =>
+        {
+            entity.ToTable("WorkspaceModes");
+            entity.HasIndex(mode => mode.UserKey).IsUnique();
+            entity.HasIndex(mode => mode.Mode);
+            entity.Property(mode => mode.UserKey).HasMaxLength(160);
+            entity.Property(mode => mode.Mode).HasMaxLength(80);
+            entity.Property(mode => mode.Role).HasMaxLength(80);
+            entity.Property(mode => mode.DisplayName).HasMaxLength(160);
+            entity.Property(mode => mode.Description);
+        });
+
+        modelBuilder.Entity<UpdateChannel>(entity =>
+        {
+            entity.ToTable("UpdateChannels");
+            entity.HasIndex(channel => channel.Name).IsUnique();
+            entity.HasIndex(channel => channel.IsEnabled);
+            entity.Property(channel => channel.Name).HasMaxLength(120);
+            entity.Property(channel => channel.Description);
+        });
+
+        modelBuilder.Entity<UpdatePackage>(entity =>
+        {
+            entity.ToTable("UpdatePackages");
+            entity.HasIndex(package => package.ChannelId);
+            entity.HasIndex(package => package.Status);
+            entity.HasIndex(package => package.PackageType);
+            entity.HasIndex(package => package.Version);
+            entity.HasIndex(package => package.PublicKeyId);
+            entity.Property(package => package.PackageType).HasMaxLength(80);
+            entity.Property(package => package.Name).HasMaxLength(180);
+            entity.Property(package => package.Version).HasMaxLength(80);
+            entity.Property(package => package.MinimumAppVersion).HasMaxLength(80);
+            entity.Property(package => package.TargetPlatform).HasMaxLength(80);
+            entity.Property(package => package.Sha256).HasMaxLength(64);
+            entity.Property(package => package.SignatureAlgorithm).HasMaxLength(80);
+            entity.Property(package => package.PublicKeyId).HasMaxLength(160);
+            entity.Property(package => package.Status).HasMaxLength(64);
+            entity.Property(package => package.DownloadUrl);
+            entity.Property(package => package.Signature);
+            entity.Property(package => package.ReleaseNotes);
         });
 
         modelBuilder.Entity<JobRecord>(entity =>

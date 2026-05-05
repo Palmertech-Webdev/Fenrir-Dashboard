@@ -554,6 +554,64 @@ namespace Fenrir.Infrastructure.Migrations
                     b.ToTable("Indicators", (string)null);
                 });
 
+            modelBuilder.Entity("Fenrir.Domain.Entities.WorkspaceMode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AllowEvidenceExports")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("AllowResponseActions")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("AllowSourceConfiguration")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("Mode")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<bool>("ShowAdvancedFeatures")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("UserKey")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Mode");
+
+                    b.HasIndex("UserKey")
+                        .IsUnique();
+
+                    b.ToTable("WorkspaceModes", (string)null);
+                });
+
             modelBuilder.Entity("Fenrir.Domain.Entities.JobRecord", b =>
                 {
                     b.Property<Guid>("Id")
