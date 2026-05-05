@@ -639,10 +639,13 @@ function escapeHtml(value) {
 function setFormBusy(form, isBusy, label) {
   if (!form) return;
   form.classList.toggle("is-busy", isBusy);
+  form.dataset.busy = isBusy ? "true" : "false";
+  form.setAttribute("aria-busy", isBusy ? "true" : "false");
   const elements = Array.from(form.elements || []);
   elements.forEach((element) => {
-    if (element.tagName === "FIELDSET") return;
-    element.disabled = isBusy;
+    if (element.tagName === "BUTTON") {
+      element.disabled = isBusy;
+    }
   });
   const submitButton = form.querySelector('button[type="submit"]');
   if (!submitButton) return;
@@ -656,6 +659,10 @@ function setFormBusy(form, isBusy, label) {
 }
 
 async function withFormBusy(form, action, label) {
+  if (form?.dataset.busy === "true") {
+    return;
+  }
+
   setFormBusy(form, true, label);
   try {
     await action();
