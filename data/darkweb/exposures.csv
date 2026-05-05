@@ -1,0 +1,4 @@
+query,queryType,sourceName,breachDate,exposureCount,description
+demo@example.org,Email,Synthetic Training Exposure,2024-01-01,1,Safe sample row for validating the local exposure provider without storing breached data.
+example.org,Domain,Synthetic Domain Exposure,2024-02-01,2,Safe sample row for validating domain exposure summaries.
+demo-user,Username,Synthetic Forum Paste,2023-09-12,1,Safe sample row for validating username exposure summaries.

@@ -136,6 +136,30 @@ function bindForms() {
     }, "Checking...");
   });
 
+  document.getElementById("darkWebImportForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      await api("/api/darkweb/import", {
+        method: "POST",
+        body: {
+          items: [
+            {
+              query: String(form.get("query") || "").trim(),
+              queryType: form.get("queryType"),
+              sourceName: String(form.get("sourceName") || "").trim(),
+              breachDate: String(form.get("breachDate") || "").trim() || null,
+              exposureCount: 1,
+              description: String(form.get("description") || "").trim() || null
+            }
+          ]
+        }
+      });
+      showToast("Exposure summary imported");
+      event.currentTarget.reset();
+    }, "Importing...");
+  });
+
   document.getElementById("networkScanForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     await withFormBusy(event.currentTarget, async () => {
@@ -476,12 +500,19 @@ function renderDnsResult(data) {
 }
 
 function renderDarkWebResult(data) {
+  const sources = Array.isArray(data.sources) && data.sources.length
+    ? `<p>Sources: ${data.sources.map((source) => escapeHtml(source)).join(", ")}</p>`
+    : "";
+  const summary = data.summary ? `<p>${escapeHtml(data.summary)}</p>` : "";
+
   return `
     <div class="result-title">
       ${pill(data.exposed ? "High" : "Informational")}
-      <span>${escapeHtml(data.query)}</span>
+      <span>${escapeHtml(data.query)}${data.verdict ? ` - ${escapeHtml(data.verdict)}` : ""}</span>
     </div>
     <p>Exposed: ${yesNo(data.exposed)} | Breach count: ${data.breachCount}</p>
+    ${summary}
+    ${sources}
     ${renderFindingList(data.findings)}
     ${jsonBlock(data)}
   `;

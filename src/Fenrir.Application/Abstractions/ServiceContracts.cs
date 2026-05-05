@@ -125,6 +125,11 @@ public interface IDarkWebProvider
 
 public sealed record DarkWebProviderResult(bool Exposed, int BreachCount, IReadOnlyList<string> Sources);
 
+public interface IDarkWebExposureImportService
+{
+    Task<DarkWebExposureImportResponse> ImportAsync(DarkWebExposureImportRequest request, CancellationToken cancellationToken);
+}
+
 public interface IDnsLookupService
 {
     Task<IReadOnlyList<string>> GetARecordsAsync(string domain, CancellationToken cancellationToken);

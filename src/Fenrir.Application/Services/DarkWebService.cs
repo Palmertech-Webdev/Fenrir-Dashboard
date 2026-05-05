@@ -51,12 +51,18 @@ public sealed class DarkWebService(IDarkWebProvider provider, IFenrirDataStore d
             await dataStore.AddFindingAsync(finding, cancellationToken);
         }
 
+        var summary = providerResult.Exposed
+            ? $"{queryType} appeared in {providerResult.BreachCount} breach or exposure source(s)."
+            : "No enabled public provider found a match. This is not proof the identifier has never appeared in a breach; import trusted exposure summaries or enable an authenticated provider for wider coverage.";
+
         return new DarkWebCheckResponse(
             check.Query,
             check.QueryType,
             check.Exposed,
             check.BreachCount,
             check.Sources,
+            providerResult.Exposed ? "Exposed" : "NoPublicMatch",
+            summary,
             check.CheckedAtUtc,
             findings.Select(finding => finding.ToDto()).ToArray());
     }

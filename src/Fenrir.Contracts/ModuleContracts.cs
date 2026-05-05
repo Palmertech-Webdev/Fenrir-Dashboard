@@ -138,8 +138,22 @@ public sealed record DarkWebCheckResponse(
     bool Exposed,
     int BreachCount,
     IReadOnlyList<string> Sources,
+    string Verdict,
+    string Summary,
     DateTime CheckedAtUtc,
     IReadOnlyList<FindingDto> Findings);
+
+public sealed record DarkWebExposureImportRequest(IReadOnlyList<DarkWebExposureImportItem> Items);
+
+public sealed record DarkWebExposureImportItem(
+    string Query,
+    string QueryType,
+    string SourceName,
+    string? BreachDate = null,
+    int ExposureCount = 1,
+    string? Description = null);
+
+public sealed record DarkWebExposureImportResponse(int Imported, IReadOnlyList<string> Skipped);
 
 public sealed record NetworkScanRequest(string Target, string ScanType = "Quick", IReadOnlyList<int>? Ports = null);
 

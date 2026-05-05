@@ -2,6 +2,7 @@ using DnsClient;
 using Fenrir.Application.Abstractions;
 using Fenrir.Infrastructure.Cases;
 using Fenrir.Infrastructure.Database;
+using Fenrir.Infrastructure.DarkWeb;
 using Fenrir.Infrastructure.Dns;
 using Fenrir.Infrastructure.Jobs;
 using Fenrir.Infrastructure.Network;
@@ -45,6 +46,9 @@ public static class DependencyInjection
         services.AddSingleton<ILookupClient>(_ => new LookupClient());
         services.AddScoped<IDnsLookupService, DnsClientLookupService>();
         services.AddScoped<INetworkProbe, TcpNetworkProbe>();
+        services.AddSingleton(DarkWebProviderOptions.FromConfiguration(configuration.GetSection("DarkWeb")));
+        services.AddSingleton<IDarkWebProvider, OpenSourceDarkWebProvider>();
+        services.AddSingleton<IDarkWebExposureImportService, LocalDarkWebExposureImportService>();
 
         services.AddScoped<IBackgroundJobScheduler, QuartzNetworkScanScheduler>();
         services.AddQuartz(options =>

@@ -4,6 +4,7 @@ using Fenrir.Application.Utilities;
 using Fenrir.Contracts;
 using Fenrir.Domain.Entities;
 using Fenrir.Domain.Enums;
+using Fenrir.Infrastructure.DarkWeb;
 
 namespace Fenrir.Tests;
 
@@ -103,6 +104,37 @@ public sealed class ModuleServiceTests
 
         Assert.Equal(first.Id, second.Id);
         Assert.Single(monitored);
+    }
+
+    [Fact]
+    public async Task LocalExposureProvider_Matches_Email_Domain_And_Username()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"fenrir-exposures-{Guid.NewGuid():N}.csv");
+        await File.WriteAllTextAsync(path, """
+            query,queryType,sourceName,breachDate,exposureCount,description
+            user@example.com,Email,Example Breach,2024-01-01,1,Summary only
+            example.com,Domain,Example Domain Exposure,2024-02-01,2,Summary only
+            analyst-one,Username,Example Forum Paste,2023-09-12,1,Summary only
+            """);
+
+        try
+        {
+            var provider = new LocalDarkWebExposureStore(path);
+
+            var email = await provider.CheckEmailAsync("User@Example.COM", CancellationToken.None);
+            var domain = await provider.CheckDomainAsync("example.com", CancellationToken.None);
+            var username = await provider.CheckUsernameAsync("Analyst-One", CancellationToken.None);
+
+            Assert.True(email.Exposed);
+            Assert.Contains(email.Sources, source => source.Contains("Example Breach", StringComparison.OrdinalIgnoreCase));
+            Assert.True(domain.Exposed);
+            Assert.Equal(2, domain.BreachCount);
+            Assert.True(username.Exposed);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
     }
 }
 
