@@ -8,6 +8,23 @@ public sealed record SiemBatchIngestRequest(
     Guid? CaseId,
     IReadOnlyList<SiemEventRequest> Events);
 
+public sealed record SiemLogImportRequest(
+    string Logs,
+    string Source = "Manual Log Import",
+    string Host = "unknown",
+    string EventType = "ImportedLog",
+    string Severity = "Informational",
+    string? Parser = "generic_json_v1",
+    string InputType = "log_text",
+    Guid? SourceId = null,
+    Guid? CaseId = null,
+    int MaxEvents = 1000);
+
+public sealed record SiemLogImportResponse(
+    SiemIngestionJobDto Job,
+    int EventsQueued,
+    IReadOnlyList<string> PreviewIndicators);
+
 public sealed record SiemEventSearchRequest(
     string? Source = null,
     string? Host = null,

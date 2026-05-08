@@ -716,7 +716,13 @@ public sealed partial class SiemService(IFenrirDataStore dataStore, ISiemParserR
         var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (Match match in UrlRegex().Matches(text))
         {
-            candidates.Add(match.Value.TrimEnd('.', ',', ';', ')', ']'));
+            var url = match.Value.TrimEnd('.', ',', ';', ')', ']');
+            candidates.Add(url);
+            var host = IndicatorClassifier.ExtractUrlHost(url);
+            if (!string.IsNullOrWhiteSpace(host))
+            {
+                candidates.Add(host);
+            }
         }
 
         foreach (Match match in IpRegex().Matches(text))

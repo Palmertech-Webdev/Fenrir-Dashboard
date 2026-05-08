@@ -62,6 +62,11 @@ public interface ISiemService
     Task<SiemIngestionJobDto?> GetIngestionJobAsync(Guid id, CancellationToken cancellationToken);
 }
 
+public interface ISiemLogImportService
+{
+    Task<SiemLogImportResponse> ImportAsync(SiemLogImportRequest request, CancellationToken cancellationToken);
+}
+
 public interface ISiemIngestionWorker
 {
     Task<bool> ProcessNextQueuedBatchAsync(CancellationToken cancellationToken);

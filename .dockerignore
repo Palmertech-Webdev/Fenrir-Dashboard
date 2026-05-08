@@ -1,0 +1,16 @@
+**/.git
+**/.vs
+**/.vscode
+**/bin
+**/obj
+**/TestResults
+**/*.user
+**/*.suo
+**/*.db
+**/*.db-shm
+**/*.db-wal
+agent/publish
+artifacts
+Dockerfile
+docker-compose.override.yml
+README*.bak

@@ -1,0 +1,53 @@
+services:
+  fenrir-db:
+    image: postgres:17-alpine
+    container_name: fenrir-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fenrir_soc_core}
+      POSTGRES_USER: ${POSTGRES_USER:-fenrir}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fenrir_dev_password_change_me}
+    volumes:
+      - fenrir-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fenrir} -d ${POSTGRES_DB:-fenrir_soc_core}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  fenrir-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fenrir-soc-core:local
+    container_name: fenrir-api
+    restart: unless-stopped
+    depends_on:
+      fenrir-db:
+        condition: service_healthy
+    ports:
+      - "${FENRIR_HTTP_PORT:-5248}:8080"
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      Http__UseHttpsRedirection: "false"
+      Database__Provider: Postgres
+      Database__MigrateOnStartup: "true"
+      ConnectionStrings__FenrirDb: Host=fenrir-db;Port=5432;Database=${POSTGRES_DB:-fenrir_soc_core};Username=${POSTGRES_USER:-fenrir};Password=${POSTGRES_PASSWORD:-fenrir_dev_password_change_me}
+      Jwt__SigningKey: ${FENRIR_JWT_SIGNING_KEY:-fenrir-development-signing-key-change-before-production-2026}
+      DarkWeb__LocalDatasetPath: /app/data/darkweb/exposures.csv
+      DarkWeb__EnableXposedOrNot: ${DARKWEB_ENABLE_XPOSEDORNOT:-true}
+      DarkWeb__EnableLeakCheck: ${DARKWEB_ENABLE_LEAKCHECK:-true}
+    volumes:
+      - ./data:/app/data
+      - fenrir-data-protection-keys:/home/app/.aspnet/DataProtection-Keys
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 5
+
+volumes:
+  fenrir-postgres-data:
+  fenrir-data-protection-keys:

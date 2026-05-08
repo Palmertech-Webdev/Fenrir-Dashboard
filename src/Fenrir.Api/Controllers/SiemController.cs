@@ -6,7 +6,7 @@ namespace Fenrir.Api.Controllers;
 
 [ApiController]
 [Route("api/siem")]
-public sealed class SiemController(ISiemService siemService) : ControllerBase
+public sealed class SiemController(ISiemService siemService, ISiemLogImportService logImportService) : ControllerBase
 {
     [HttpPost("events")]
     public async Task<ActionResult<SiemEventIngestResponse>> Ingest(SiemEventRequest request, CancellationToken cancellationToken)
@@ -19,6 +19,13 @@ public sealed class SiemController(ISiemService siemService) : ControllerBase
     public async Task<ActionResult<SiemBatchIngestResponse>> IngestBatch(SiemBatchIngestRequest request, CancellationToken cancellationToken)
     {
         var response = await siemService.IngestBatchAsync(request, cancellationToken);
+        return Accepted(response);
+    }
+
+    [HttpPost("import/logs")]
+    public async Task<ActionResult<SiemLogImportResponse>> ImportLogs(SiemLogImportRequest request, CancellationToken cancellationToken)
+    {
+        var response = await logImportService.ImportAsync(request, cancellationToken);
         return Accepted(response);
     }
 

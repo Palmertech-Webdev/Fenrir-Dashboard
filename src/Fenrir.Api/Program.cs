@@ -72,11 +72,18 @@ builder.Services.AddFenrirInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 
-if (app.Configuration.GetValue<bool>("Database:EnsureCreated"))
+if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup") || app.Configuration.GetValue<bool>("Database:EnsureCreated"))
 {
     await using var scope = app.Services.CreateAsyncScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<FenrirDbContext>();
-    await dbContext.Database.EnsureCreatedAsync();
+    if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+    {
+        await dbContext.Database.MigrateAsync();
+    }
+    else
+    {
+        await dbContext.Database.EnsureCreatedAsync();
+    }
 }
 
 if (app.Environment.IsDevelopment())
@@ -91,7 +98,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseSerilogRequestLogging();
-if (!app.Environment.IsDevelopment())
+if (app.Configuration.GetValue("Http:UseHttpsRedirection", !app.Environment.IsDevelopment()))
 {
     app.UseHttpsRedirection();
 }

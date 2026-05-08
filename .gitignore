@@ -12,6 +12,9 @@ TestResults/
 *.nupkg
 *.snupkg
 *.log
+.env
+.env.*
+!.env.example
 *.db
 *.db-shm
 *.db-wal

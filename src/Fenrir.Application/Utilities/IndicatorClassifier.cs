@@ -100,9 +100,22 @@ public static partial class IndicatorClassifier
             : null;
     }
 
+    public static string? ExtractUrlHost(string value)
+    {
+        return TryNormalizeUrl(value, out _, out var host)
+            ? host
+            : null;
+    }
+
     private static bool TryNormalizeUrl(string value, out string url)
     {
+        return TryNormalizeUrl(value, out url, out _);
+    }
+
+    private static bool TryNormalizeUrl(string value, out string url, out string host)
+    {
         url = "";
+        host = "";
         if (!Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri))
         {
             return false;
@@ -113,9 +126,10 @@ public static partial class IndicatorClassifier
             return false;
         }
 
+        host = uri.Host.ToLowerInvariant();
         var builder = new UriBuilder(uri)
         {
-            Host = uri.Host.ToLowerInvariant(),
+            Host = host,
             Fragment = ""
         };
 

@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<INetworkScanningService, NetworkScanningService>();
         services.AddScoped<INetworkScanExecutor, NetworkScanExecutor>();
         services.AddScoped<ISiemService, SiemService>();
+        services.AddScoped<ISiemLogImportService, SiemLogImportService>();
         services.AddScoped<ISiemIngestionWorker, SiemService>();
         services.AddHostedService<SiemIngestionWorkerHostedService>();
         services.AddScoped<ICaseService, CaseService>();

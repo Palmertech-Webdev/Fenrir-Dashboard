@@ -10,11 +10,53 @@ const navItems = document.querySelectorAll(".nav-item");
 const toast = document.getElementById("toast");
 
 document.addEventListener("DOMContentLoaded", () => {
+  ensureSiemLogImportPanel();
   bindNavigation();
   bindForms();
   initDensityToggle();
   refreshAll();
 });
+
+function ensureSiemLogImportPanel() {
+  if (document.getElementById("siemLogImportForm")) {
+    return;
+  }
+
+  const view = document.getElementById("view-siem");
+  if (!view) {
+    return;
+  }
+
+  const panel = document.createElement("section");
+  panel.className = "panel";
+  panel.innerHTML = `
+    <div class="panel-heading">
+      <h2>Log Import / IOC Sweep</h2>
+      <span class="muted-text">Queue raw logs, JSON, or NDJSON through IOC matching.</span>
+    </div>
+    <form id="siemLogImportForm" class="tool-form">
+      <div class="form-grid">
+        <label>Source<input name="source" type="text" value="Manual Log Import" required></label>
+        <label>Host<input name="host" type="text" value="unknown" required></label>
+      </div>
+      <div class="form-grid">
+        <label>Event type<input name="eventType" type="text" value="ImportedLog" required></label>
+        <label>Severity<select name="severity"><option>Informational</option><option>Low</option><option>Medium</option><option>High</option><option>Critical</option></select></label>
+      </div>
+      <label>Logs<textarea name="logs" rows="8" placeholder="Paste firewall, proxy, DNS, EDR, syslog, JSON array, or NDJSON logs" required></textarea></label>
+      <button type="submit">Import Logs</button>
+    </form>
+    <div class="result-box" id="siemLogImportResult"></div>
+  `;
+
+  const manualPanel = document.getElementById("siemEventForm")?.closest(".panel");
+  if (manualPanel) {
+    view.insertBefore(panel, manualPanel);
+    return;
+  }
+
+  view.appendChild(panel);
+}
 
 function bindNavigation() {
   navItems.forEach((item) => {
@@ -188,6 +230,28 @@ function bindForms() {
       const form = new FormData(event.currentTarget);
       await runReadTool(`/api/network/scans/${encodeURIComponent(form.get("scanId"))}`, "networkLookupResult", renderNetworkScan);
     }, "Loading...");
+  });
+
+  document.getElementById("siemLogImportForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    await withFormBusy(event.currentTarget, async () => {
+      const form = new FormData(event.currentTarget);
+      await runTool(
+        "/api/siem/import/logs",
+        {
+          source: form.get("source"),
+          host: form.get("host"),
+          eventType: form.get("eventType"),
+          severity: form.get("severity"),
+          logs: form.get("logs"),
+          inputType: "log_text",
+          parser: "generic_json_v1"
+        },
+        "siemLogImportResult",
+        renderSiemLogImportResult
+      );
+      await refreshJobs();
+    }, "Importing...");
   });
 
   document.getElementById("siemEventForm").addEventListener("submit", async (event) => {
@@ -573,6 +637,22 @@ function renderSiemIngestResult(data) {
     </div>
     <p>${escapeHtml(data.event.message)}</p>
     ${renderFindingList(data.findings)}
+    ${jsonBlock(data)}
+  `;
+}
+
+function renderSiemLogImportResult(data) {
+  const preview = Array.isArray(data.previewIndicators) && data.previewIndicators.length
+    ? `<p>Preview IOCs: ${data.previewIndicators.map((indicator) => escapeHtml(indicator)).join(", ")}</p>`
+    : "<p>No IOC-looking values found in the first imported events.</p>";
+
+  return `
+    <div class="result-title">
+      ${pill(data.job?.status || "Queued")}
+      <span>${data.eventsQueued || 0} log event(s) queued</span>
+    </div>
+    <p>Job ID: <strong>${escapeHtml(data.job?.id || "")}</strong></p>
+    ${preview}
     ${jsonBlock(data)}
   `;
 }
